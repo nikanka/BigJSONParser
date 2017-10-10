@@ -5,10 +5,24 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import javax.swing.tree.TreeNode;
 
+/**
+ * Grammar in EBNF:
+ * 
+ * object	: '{' { STRING : value [, STRING : value] } '}'
+ * array	: '['  {value [, value] } ']'
+ * value	: STRING | NUMBER | object | array | 'true' | 'false' | 'null'
+ * STRING	: '"' {}   '"' 
+ * NUMBER	:
+ * @author nikanka
+ *
+ */
 public class ByteStreamParser {
 	public static final String KEYWORD_TRUE = "true";
 	public static final String KEYWORD_FALSE = "false";
@@ -38,7 +52,7 @@ public class ByteStreamParser {
 		
 		String fileName = "SmallTest2.json";
 		ByteStreamParser parser = new ByteStreamParser(fileName);
-		Node root = parser.parseIntoFullTree();
+		JSONTreeNode root = parser.parseIntoFullTree();
 		root.print(System.out);
 		System.out.flush();
 		
@@ -47,20 +61,22 @@ public class ByteStreamParser {
 	public ByteStreamParser(String fileName) throws IOException{
 		reader = new UTF8CharFileReader(fileName);
 	}
-	public Node parseIntoFullTree() throws IOException{
+	public JSONTreeNode parseIntoFullTree() throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseIntoFullTree");
 			
 		}
 		moveToNextNonspaceChar();
-		Node root = null;
-		if(curChar == '{'){
-			root = parseObject();
-		} else if(curChar == '['){
-			root = parseArray();
-		} else {
-			throwUnexpectedSymbolException("Unexpected symbol: should be '{' or '['");
-		}
+		JSONTreeNode root = parseValue(null);
+//		String rootName = "JSON";
+//		if(curChar == '{'){
+//			root = parseObject(rootName);
+//		} else if(curChar == '['){
+//			root = parseArray(rootName);
+//		} else {
+//			throwUnexpectedSymbolException("Unexpected symbol: should be '{' or '['");
+//		}
+		
 		if(DEBUG){
 			System.out.println("Done with parseIntoFullTree: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
@@ -82,20 +98,23 @@ public class ByteStreamParser {
 	 * After this method the cursor should be at the char following the ']' if any. 
 	 * @return
 	 */
-	private Node parseArray() throws IOException{
+	private JSONTreeNode parseArray(String name) throws IOException{
 		if(DEBUG){
 			System.out.println(addTab()+"Entered parseArray");
 		}
 		if(curChar != '['){
 			throwUnexpectedSymbolException("Array should start with '['");
 		}
-		Node arrayNode = new Node(Node.TYPE_ARRAY, level);
+		JSONTreeNode arrayNode = new JSONTreeNode(JSONTreeNode.TYPE_ARRAY, name, level);
 		moveToNextNonspaceChar();
 		level++;
+		int ind = 0;
 		while(curChar != ']'){
-			Node child = parseValue();
+			JSONTreeNode child = parseValue(""+ind);
 			arrayNode.addChild(child);
-			
+			if(Character.isWhitespace(curChar)){
+				moveToNextNonspaceChar();
+			}
 			if(curChar == ']'){
 				break;
 			}
@@ -106,6 +125,7 @@ public class ByteStreamParser {
 				throwUnexpectedSymbolException("Unexpected symbol between "
 						+ "values in an array");
 			}
+			ind++;
 		}
 		level--;
 		if(reader.hasNext()){	
@@ -119,11 +139,11 @@ public class ByteStreamParser {
 
 	/**
 	 * Parse an object: '{' { string:value [, string:value] } '}'
-	 * In the beginning of the method the cursor should be either at '{'.
+	 * In the beginning of the method the cursor should be at '{'.
 	 * After this method the cursor should be at the char following the '}' if any. 
 	 * @return
 	 */
-	private Node parseObject() throws IOException{
+	private JSONTreeNode parseObject(String name) throws IOException{
 		if(DEBUG){
 			System.out.println(addTab()+"Entered parseObject");
 		}
@@ -131,13 +151,15 @@ public class ByteStreamParser {
 		if(curChar != '{'){
 			throwUnexpectedSymbolException("Object should start with '{'");
 		}
-		Node objNode = new Node(Node.TYPE_OBJECT, level);
+		JSONTreeNode objNode = new JSONTreeNode(JSONTreeNode.TYPE_OBJECT, name, level);
 		moveToNextNonspaceChar();
 		level++;
 		while(curChar != '}'){
-			Node child = parseNameValuePair();
+			JSONTreeNode child = parseNameValuePair();
 			objNode.addChild(child);
-			
+			if(Character.isWhitespace(curChar)){
+				moveToNextNonspaceChar();
+			}
 			if(curChar == '}'){
 				break;
 			}
@@ -164,7 +186,7 @@ public class ByteStreamParser {
 	 * After this method the cursor should be at the next non-space symbol (should be ',' or '}')
 	 * @return
 	 */
-	private Node parseNameValuePair()throws IOException{
+	private JSONTreeNode parseNameValuePair()throws IOException{
 		if(DEBUG){
 			System.out.println(addTab() + "Entered parseNameValuePair");
 		}
@@ -174,8 +196,7 @@ public class ByteStreamParser {
 					+ "name and value in an object");
 		}
 		moveToNextNonspaceChar();
-		Node ret = parseValue();
-		ret.name = name;
+		JSONTreeNode ret = parseValue(name);
 		if(DEBUG){
 			System.out.println(removeTab() + "Done with parseNameValuePair: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
@@ -187,40 +208,40 @@ public class ByteStreamParser {
 	 * @return
 	 */
 
-	private Node parseValue() throws IOException{
+	private JSONTreeNode parseValue(String name) throws IOException{
 		if(DEBUG){
 			System.out.println(addTab() + "Entered parseValue");
 		}
-		Node ret = null;
+		JSONTreeNode ret = null;
 		if(curChar == '{'){
-			ret = parseObject();
+			ret = parseObject(name);
 		} else if(curChar == '['){
-			ret = parseArray();
+			ret = parseArray(name);
 		} else if(curChar == '\"'){
-			ret = new Node(Node.TYPE_STRING, parseString(), level);
+			ret = new JSONTreeNode(JSONTreeNode.TYPE_STRING, name, parseString(), level);
 		} else if(curChar == 't'){
-			ret = parseKeyword(KEYWORD_TRUE);
+			ret = parseKeyword(name, KEYWORD_TRUE);
 		} else if(curChar == 'f'){
-			ret = parseKeyword(KEYWORD_FALSE);
+			ret = parseKeyword(name, KEYWORD_FALSE);
 		} else if(curChar == 'n'){
-			ret = parseKeyword(KEYWORD_NULL);
+			ret = parseKeyword(name, KEYWORD_NULL);
 		} else {
-			ret = parseNumber();
+			ret = parseNumber(name);
 		} 
-		if(Character.isWhitespace(curChar)){
-			moveToNextNonspaceChar();
-		}
+//		if(Character.isWhitespace(curChar)){
+//			moveToNextNonspaceChar();
+//		}
 		if(DEBUG){
 			System.out.println(removeTab() + "Done with parseValue: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
 		return ret;
 	}
-	private Node parseNumber() throws IOException{
+	private JSONTreeNode parseNumber(String name) throws IOException{
 		if(DEBUG){
 			System.out.println(addTab() + "Entered parseNumber");
 		}
 		StringBuilder sb = new StringBuilder();
-		while(curChar != ',' && curChar != '}' && curChar != ']'){
+		while(curChar != ',' && curChar != '}' && curChar != ']' && !Character.isWhitespace(curChar)){
 			sb.append((char)curChar);
 			moveToNextChar();
 		}
@@ -229,13 +250,13 @@ public class ByteStreamParser {
 			if(DEBUG){
 				System.out.println(removeTab() + "Done with parseNumber: "+reader.getFilePosition()+", '"+curChar+"'");
 			}
-			return new Node(Node.TYPE_NUMBER, number, level);
+			return new JSONTreeNode(JSONTreeNode.TYPE_NUMBER, name, number, level);
 		}
 		throwUnexpectedSymbolException(number + " at pos "+
 		(reader.getFilePosition()-number.length())+" is not a number");
 		return null;
 	}
-	private Node parseKeyword(String keyword)throws IOException{
+	private JSONTreeNode parseKeyword(String name, String keyword)throws IOException{
 		if(DEBUG){
 			System.out.println(addTab() + "Entered parseKeyword");
 		}
@@ -248,7 +269,7 @@ public class ByteStreamParser {
 		if(DEBUG){
 			System.out.println(removeTab() + "Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return new Node(Node.TYPE_KEYWORD, keyword, level);
+		return new JSONTreeNode(JSONTreeNode.TYPE_KEYWORD, name, keyword, level);
 	}
 	
 	private void throwUnexpectedSymbolException(String msg){
@@ -338,84 +359,129 @@ public class ByteStreamParser {
 		if(DEBUG) System.out.println("Got non-space char: '"+curChar+"'");
 	}
 	
-	private static class Node {
-		static final int TYPE_OBJECT = 1;
-		static final int TYPE_ARRAY = 2;
-		static final int TYPE_STRING = 3;
-		static final int TYPE_NUMBER = 4;
-		static final int TYPE_KEYWORD = 5;
-		
-		int type;
-		String value;
-		String name;
-		List<Node> children;
-		long startPos;
-		long endPos;
-		int level;
-		
-		Node(int type, String value, int level){
-			this(type, level);
-			this.value = value;
-		}
-		Node(int type, int level){
-			this.type = type;
-			this.level = level;
-			this.children = new ArrayList<Node>();
-			Arrays.fill(spaces,(byte)' ');
-		}
-		
-		void addChild(Node child){
-			children.add(child);
-		}
-		byte[] objStart = "{\n".getBytes();
-		byte[] arrayStart = "[\n".getBytes();
-		byte[] comma = ",\n".getBytes();
-		byte[] colon = ": ".getBytes();
-		byte[] spaces = new byte[500];
-		
-		void print(OutputStream stream)throws IOException{
-			stream.write(spaces, 0, level*2);
-			if(name != null){
-				stream.write('\"');
-				stream.write(name.getBytes());
-				stream.write('\"');
-				stream.write(colon);
-			}
-			if(type == TYPE_STRING){
-				stream.write('\"');
-				stream.write(value.getBytes(Charset.forName("UTF-8")));
-				stream.write('\"');
-			} else if(type == TYPE_KEYWORD || type == TYPE_NUMBER){
-				stream.write(value.getBytes());
-			} else if(type == TYPE_OBJECT){
-				stream.write(objStart);
-				for(int i = 0; i < children.size(); i++){
-					Node child = children.get(i);
-					child.print(stream);
-					if(i < children.size()-1){
-						stream.write(comma);
-					}
-				}
-				stream.write('\n');
-				stream.write(spaces, 0, level*2);
-				stream.write('}');
-			} else if(type == TYPE_ARRAY){
-				stream.write(arrayStart);
-				for(int i = 0; i < children.size(); i++){
-					Node child = children.get(i);
-					child.print(stream);
-					if(i < children.size()-1){
-						stream.write(comma);
-					}
-				}
-				stream.write('\n');
-				stream.write(spaces, 0, level*2);
-				stream.write(']');
-			}
-		}
-		
-		
-	}
+//	private static class Node implements TreeNode{
+//		static final int TYPE_OBJECT = 1;
+//		static final int TYPE_ARRAY = 2;
+//		static final int TYPE_STRING = 3;
+//		static final int TYPE_NUMBER = 4;
+//		static final int TYPE_KEYWORD = 5;
+//		
+//		int type;
+//		String value;
+//		String name;
+//		List<Node> children;
+//		Node parent;
+//		long startPos;
+//		long endPos;
+//		int level;
+//		
+//		Node(int type, String value, int level){
+//			this(type, level);
+//			this.value = value;
+//		}
+//		Node(int type, int level){
+//			this.type = type;
+//			this.level = level;
+//			this.children = new ArrayList<Node>();
+//			Arrays.fill(spaces,(byte)' ');
+//		}
+//		
+//		void addChild(Node child){
+//			children.add(child);
+//			child.parent = this;
+//		}
+//		byte[] objStart = "{\n".getBytes();
+//		byte[] arrayStart = "[\n".getBytes();
+//		byte[] comma = ",\n".getBytes();
+//		byte[] colon = ": ".getBytes();
+//		byte[] spaces = new byte[500];
+//		
+//		void print(OutputStream stream)throws IOException{
+//			stream.write(spaces, 0, level*2);
+//			if(name != null){
+//				stream.write('\"');
+//				stream.write(name.getBytes());
+//				stream.write('\"');
+//				stream.write(colon);
+//			}
+//			if(type == TYPE_STRING){
+//				stream.write('\"');
+//				stream.write(value.getBytes(Charset.forName("UTF-8")));
+//				stream.write('\"');
+//			} else if(type == TYPE_KEYWORD || type == TYPE_NUMBER){
+//				stream.write(value.getBytes());
+//			} else if(type == TYPE_OBJECT){
+//				stream.write(objStart);
+//				for(int i = 0; i < children.size(); i++){
+//					Node child = children.get(i);
+//					child.print(stream);
+//					if(i < children.size()-1){
+//						stream.write(comma);
+//					}
+//				}
+//				stream.write('\n');
+//				stream.write(spaces, 0, level*2);
+//				stream.write('}');
+//			} else if(type == TYPE_ARRAY){
+//				stream.write(arrayStart);
+//				for(int i = 0; i < children.size(); i++){
+//					Node child = children.get(i);
+//					child.print(stream);
+//					if(i < children.size()-1){
+//						stream.write(comma);
+//					}
+//				}
+//				stream.write('\n');
+//				stream.write(spaces, 0, level*2);
+//				stream.write(']');
+//			}
+//		}
+//		 
+//		/////// TreeNode methods ///////////////////////
+//		@Override
+//		public TreeNode getChildAt(int childIndex) {
+//			if(childIndex < 0 || childIndex >= children.size()){
+//				throw new IndexOutOfBoundsException("Asks for child #"+ childIndex +
+//						" (have "+children.size()+" children)");
+//			}
+//			return children.get(childIndex);
+//		}
+//		@Override
+//		public int getChildCount() {
+//			return children.size();
+//		}
+//		@Override
+//		public TreeNode getParent() {
+//			return parent;
+//		}
+//		@Override
+//		public int getIndex(TreeNode node) {
+//			if(node == null) {
+//				return -1;
+//			}
+//			for(int i = 0; i < children.size(); i++){
+//				if(node.equals(children.get(i))){
+//					return i;
+//				}
+//			}
+//			return -1;
+//		}
+//		@Override
+//		public boolean getAllowsChildren() {
+//			return type == TYPE_ARRAY || type == TYPE_OBJECT;
+//		}
+//		@Override
+//		public boolean isLeaf() {
+//			return children.size() == 0;
+//		}
+//		@Override
+//		public Enumeration children() {
+//			return Collections.enumeration(children);
+//		}
+//		/////// End of TreeNode methods ///////////////////////
+//		
+//		
+//	}
 
 	
 }
