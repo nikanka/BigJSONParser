@@ -9,14 +9,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeWillExpandListener;
-import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreeNode;
 
 import main.java.parser.ByteStreamParser;
 
-public class TreeView extends JPanel implements TreeWillExpandListener {
+public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener {
 	DefaultTreeModel treeModel;
 	
 	public static void main(String[] args) throws IOException{
@@ -26,11 +25,11 @@ public class TreeView extends JPanel implements TreeWillExpandListener {
 		
 		JFrame frame = new JFrame("Tree View");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.add(new TreeView(root));
+		frame.add(new JSONTreeViewPanel(root));
 		frame.pack();
 		frame.setVisible(true);
 	}
-	public TreeView(TreeNode root){
+	public JSONTreeViewPanel(TreeNode root){
 		super();
 //		DefaultMutableTreeNode root = new DefaultMutableTreeNode("Root");
 //		DefaultMutableTreeNode child1 = new DefaultMutableTreeNode("Child1");
