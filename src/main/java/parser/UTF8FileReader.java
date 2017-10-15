@@ -18,13 +18,13 @@ import javax.management.RuntimeErrorException;
 public class UTF8FileReader {
 	public static final int bufferSize = 8192;
 	
-	long filePos = 0;
-	FileInputStream input;
-	FileChannel fileChannel;
-	ByteBuffer byteBuffer;
-	CharBuffer charBuffer;
-	boolean hasNext = true;
-	CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
+	protected long filePos = 0;
+	private FileInputStream input;
+	protected FileChannel fileChannel;
+	protected ByteBuffer byteBuffer;
+	protected CharBuffer charBuffer;
+	protected boolean hasNext = true;
+	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
@@ -536,7 +536,7 @@ public class UTF8FileReader {
 	 * @return
 	 * @throws IOException
 	 */
-/*	public boolean getToPosition(long pos)throws IOException{
+	public boolean getToPosition(long pos)throws IOException{
 		System.out.println("get to pos "+pos);
 		filePos = pos;
 		fileChannel.position(pos);
@@ -550,7 +550,7 @@ public class UTF8FileReader {
 		hasNext = readBytes()>=0;
 		return hasNext;
 	}
-	
+/*	
 	public int nextNonspaceByte()throws IOException{
 		while(hasNext()){
 			byte ret = getNextByte();

@@ -44,9 +44,11 @@ public class UTF8CharFileReader extends UTF8FileReader{
 		System.out.println(sb.toString());
 	}
 
-
+	public int getReadingMode(){
+		return currentMode;
+	}
 	public char getNextChar() throws IOException{
-		if(!hasNext()){
+		if(!hasNext){
 			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
 		}
 		char ret = 1;	

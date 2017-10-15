@@ -1,5 +1,6 @@
 eclipse.preferences.version=1
 encoding//src/main/java/parser/ByteStreamParser.java=UTF-8
+encoding//src/main/java/parser/LazyByteStreamParser.java=UTF-8
 encoding//src/main/java/parser/UTF8CharFileReader.java=UTF-8
 encoding//src/main/java/parser/UTF8FileReader.java=UTF-8
 encoding//src/test/java/parser/UTF8CharReaderTest.java=UTF-8

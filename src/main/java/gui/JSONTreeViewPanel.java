@@ -14,22 +14,23 @@ import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreeNode;
 
 import main.java.parser.ByteStreamParser;
+import main.java.parser.JSONTreeNode;
+import main.java.parser.LazyByteStreamParser;
 
 public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener {
 	DefaultTreeModel treeModel;
+	LazyByteStreamParser parser;
 	
 	public static void main(String[] args) throws IOException{
 		String fileName = "SmallTest2.json";
-		ByteStreamParser parser = new ByteStreamParser(fileName);
-		TreeNode root = parser.parseIntoFullTree();
 		
 		JFrame frame = new JFrame("Tree View");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.add(new JSONTreeViewPanel(root));
+		frame.add(new JSONTreeViewPanel(fileName));
 		frame.pack();
 		frame.setVisible(true);
 	}
-	public JSONTreeViewPanel(TreeNode root){
+	public JSONTreeViewPanel(String fileName)throws IOException{
 		super();
 //		DefaultMutableTreeNode root = new DefaultMutableTreeNode("Root");
 //		DefaultMutableTreeNode child1 = new DefaultMutableTreeNode("Child1");
@@ -38,6 +39,9 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener 
 //		root.add(child2);
 //		child1.add(new DefaultMutableTreeNode("mockNode"));
 //		child2.add(new DefaultMutableTreeNode("mockNode"));
+		parser = new LazyByteStreamParser(fileName, true);
+		TreeNode root = parser.parseTopLevel();
+		
 		treeModel = new DefaultTreeModel(root, true);
 		JTree treeView = new JTree(treeModel);
 		treeView.addTreeWillExpandListener(this);
@@ -48,13 +52,20 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener 
 		add(scrollPane);
 	}
 	
-	private void addNodes(	){
-		
-	}
 	@Override
 	public void treeWillExpand(TreeExpansionEvent event) throws ExpandVetoException {
-		
-//		DefaultMutableTreeNode parent = (DefaultMutableTreeNode)event.getPath().getLastPathComponent();
+		JSONTreeNode parent = (JSONTreeNode)event.getPath().getLastPathComponent();
+		if(parent.isFullyLoaded()){
+			return;
+		}
+		try{
+			parser.loadNodeChildren(parent);
+		}catch(IOException e){
+			throw new RuntimeException(e);
+		}
+//		for(JSONTreeNode child: parent.children()){
+//			
+//		}
 //		treeModel.insertNodeInto(new DefaultMutableTreeNode("Test"), parent, 0);
 //		
 		

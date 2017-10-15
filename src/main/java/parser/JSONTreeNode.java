@@ -18,7 +18,7 @@ public class JSONTreeNode  implements TreeNode{
 	static final int TYPE_STRING = 3;
 	static final int TYPE_NUMBER = 4;
 	static final int TYPE_KEYWORD = 5;
-	
+
 	private int type;
 	private String value;
 	private String name;
@@ -27,6 +27,7 @@ public class JSONTreeNode  implements TreeNode{
 	private long startPos;
 	private long endPos;
 	private int level;
+	private boolean isFullyLoaded = true;
 	
 	JSONTreeNode(int type, String name, String value, int level){
 		this(type, name, level);
@@ -43,6 +44,22 @@ public class JSONTreeNode  implements TreeNode{
 	void addChild(JSONTreeNode child){
 		children.add(child);
 		child.parent = this;
+	}
+	
+	long getFilePosition(){
+		return startPos;
+	}
+	
+	void setFilePosition(long pos){
+		this.startPos = pos;
+	}
+	
+	public boolean isFullyLoaded(){
+		return isFullyLoaded;
+	}
+	
+	void setIsFullyLoaded(boolean isFullyLoaded){
+		this.isFullyLoaded = isFullyLoaded;
 	}
 	byte[] objStart = "{\n".getBytes();
 	byte[] arrayStart = "[\n".getBytes();
@@ -89,6 +106,14 @@ public class JSONTreeNode  implements TreeNode{
 			stream.write(spaces, 0, level*2);
 			stream.write(']');
 		}
+	}
+	
+	public int getType(){
+		return type;
+	}
+	
+	public int getLevel(){
+		return level;
 	}
 	 
 	@Override
