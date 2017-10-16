@@ -1,6 +1,8 @@
 package main.java.parser;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -22,12 +24,9 @@ public class LazyByteStreamParser {
 
 	
 	private static final boolean DEBUG = false; 
-	private String tabString = "";
 	
 	private UTF8CharFileReader reader;
 	private char curChar;
-	private int level = 0;
-	private boolean isLazyLoad = true;
 	
 	private Pattern patternNumber = Pattern.compile("^-?(0|([1-9][0-9]*))(.[0-9]+)?([eE][+-]?[0-9]+)?$");
 
@@ -45,28 +44,27 @@ public class LazyByteStreamParser {
 //		System.out.println(sb.toString().length());
 		
 		String fileName = "SmallTest2.json";
-		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, false);
+		LazyByteStreamParser parser = new LazyByteStreamParser(fileName);
 //		parser.reader.getToPosition(11);
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
-		JSONTreeNode root = parser.parseTopLevel();
-		root.print(System.out);
-		System.out.flush();
+		JSONNode root = parser.parseTopLevel();
+//		root.print(System.out);
+//		System.out.flush();
 		
 		
 	}
-	public LazyByteStreamParser(String fileName, boolean isLazyLoad) throws IOException{
+	public LazyByteStreamParser(String fileName) throws IOException{
 		reader = new UTF8CharFileReader(fileName);
-		this.isLazyLoad = isLazyLoad;
 	}
-	public JSONTreeNode parseTopLevel() throws IOException{
+	public JSONNode parseTopLevel() throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseIntoFullTree");
 			
 		}
 		moveToNextNonspaceChar();
-		JSONTreeNode root = parseValue(null, false);
+		JSONNode root = parseValue(null);
 //		String rootName = "JSON";
 //		if(curChar == '{'){
 //			root = parseObject(rootName);
@@ -82,15 +80,6 @@ public class LazyByteStreamParser {
 		
 		return root;
 	}
-	private String addTab(){
-		tabString = tabString+" ";
-		return tabString;
-	}
-	private String removeTab(){
-		String ret = tabString;
-		tabString = tabString.substring(1);
-		return ret;
-	}
 	/**
 	 * Parse an array: '[' { value [, value] } ']' and create a new tree node.
 	 * If <code>lazy</code> is <code>true</code> does not parse array content.
@@ -98,10 +87,10 @@ public class LazyByteStreamParser {
 	 * After this method the cursor should be at the char following the ']' if any. 
 	 * @return
 	 */
-	private JSONTreeNode parseArray(String name, boolean lazy) throws IOException{
-		JSONTreeNode arrayNode = new JSONTreeNode(JSONTreeNode.TYPE_ARRAY, name, level);
-		return parseArray(arrayNode, lazy);
-	}
+//	private JSONNode parseArray(String name, boolean lazy) throws IOException{
+//		JSONNode arrayNode = new JSONNode(JSONNode.TYPE_ARRAY, name, level);
+//		return parseArray(arrayNode, lazy);
+//	}
 	/**
 	 * Parse an array: '[' { value [, value] } ']' and put the data into provided 
 	 * <code>arrayNode</code>. If <code>lazy</code> is <code>true</code> does not parse array content.
@@ -109,31 +98,30 @@ public class LazyByteStreamParser {
 	 * After this method the cursor should be at the char following the ']' if any. 
 	 * @return
 	 */
-	private JSONTreeNode parseArray(JSONTreeNode arrayNode, boolean lazy) throws IOException{
+	private List<JSONNode> parseArray(JSONNode arrayNode, boolean lazy) throws IOException{
 		if(DEBUG){
-			System.out.println(addTab()+"Entered parseArray");
+			System.out.println("Entered parseArray");
 		}
 		if(curChar != '['){
 			throwUnexpectedSymbolException("Array should start with '['");
 		}
 //		JSONTreeNode arrayNode = new JSONTreeNode(JSONTreeNode.TYPE_ARRAY, name, level);
-		arrayNode.setIsFullyLoaded(!lazy);
-		if(lazy){
-			arrayNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
-			moveToTheEndOfToken('[', ']');
-			if(DEBUG){
-				System.out.println(
-						removeTab() + "Finished lazy loading of an array. File pos = " + reader.getFilePosition());
-			}
-			return arrayNode;
-		}
+//		arrayNode.setIsFullyLoaded(!lazy);
+//		if(lazy){
+//			arrayNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
+//			moveToTheEndOfToken('[', ']');
+//			if(DEBUG){
+//				System.out.println(
+//						removeTab() + "Finished lazy loading of an array. File pos = " + reader.getFilePosition());
+//			}
+//			return arrayNode;
+//		}
+		List<JSONNode> nodeList = new ArrayList<JSONNode>();
 		moveToNextNonspaceChar();
-		level = arrayNode.getLevel();
-		level++;
 		int ind = 0;
 		while(curChar != ']'){
-			JSONTreeNode child = parseValue(""+ind, true);
-			arrayNode.addChild(child);
+			JSONNode child = parseValue(""+ind);
+			nodeList.add(child);
 			if(Character.isWhitespace(curChar)){
 				moveToNextNonspaceChar();
 			}
@@ -149,51 +137,49 @@ public class LazyByteStreamParser {
 			}
 			ind++;
 		}
-		level--;
 		if(reader.hasNext()){	
 			moveToNextChar();
 		}
 		if(DEBUG){
-			System.out.println(removeTab()+"Done with parseArray: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseArray: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return arrayNode;
+		return nodeList;
 	}
 
-	private JSONTreeNode parseObject(String name, boolean lazy) throws IOException{
-		JSONTreeNode objNode = new JSONTreeNode(JSONTreeNode.TYPE_OBJECT, name, level);
-		return parseObject(objNode, lazy);
-	}
+//	private JSONNode parseObject(String name, boolean lazy) throws IOException{
+//		JSONNode objNode = new JSONNode(JSONNode.TYPE_OBJECT, name, level);
+//		return parseObject(objNode, lazy);
+//	}
 	/**
 	 * Parse an object: '{' { string:value [, string:value] } '}'
 	 * In the beginning of the method the cursor should be at '{'.
 	 * After this method the cursor should be at the char following the '}' if any. 
 	 * @return
 	 */
-	private JSONTreeNode parseObject(JSONTreeNode objNode, boolean lazy) throws IOException{
+	private List<JSONNode> parseObject(JSONNode objNode, boolean lazy) throws IOException{
 		if(DEBUG){
-			System.out.println(addTab()+"Entered parseObject");
+			System.out.println("Entered parseObject");
 		}
 		
 		if(curChar != '{'){
 			throwUnexpectedSymbolException("Object should start with '{'");
 		}
-//		JSONTreeNode objNode = new JSONTreeNode(JSONTreeNode.TYPE_OBJECT, name, level);
-		objNode.setIsFullyLoaded(!lazy);
-		if(lazy){
-			objNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken('{', '}');
-			if(DEBUG){
-				System.out.println(
-						removeTab() + "Finished lazy loading of an object. File pos = " + reader.getFilePosition());
-			}
-			return objNode;
-		}
+////		JSONTreeNode objNode = new JSONTreeNode(JSONTreeNode.TYPE_OBJECT, name, level);
+//		objNode.setIsFullyLoaded(!lazy);
+//		if(lazy){
+//			objNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
+//			moveToTheEndOfToken('{', '}');
+//			if(DEBUG){
+//				System.out.println(
+//						removeTab() + "Finished lazy loading of an object. File pos = " + reader.getFilePosition());
+//			}
+//			return objNode;
+//		}
+		List<JSONNode> nodeList = new ArrayList<JSONNode>();
 		moveToNextNonspaceChar();
-		level = objNode.getLevel();
-		level++;
 		while(curChar != '}'){
-			JSONTreeNode child = parseNameValuePair(true);
-			objNode.addChild(child);
+			JSONNode node = parseNameValuePair(true);
+			nodeList.add(node);
 			if(Character.isWhitespace(curChar)){
 				moveToNextNonspaceChar();
 			}
@@ -207,15 +193,14 @@ public class LazyByteStreamParser {
 						+ "name-value pairs");
 			}
 		}
-		level--;
 		System.out.println("End Of Object");
 		if(reader.hasNext()){
 			moveToNextChar();
 		}
 		if(DEBUG){
-			System.out.println(removeTab()+"Done with parseObject: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseObject: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return objNode;
+		return nodeList;
 	}
 	/**
 	 * Moves the file cursor to the symbol just after the current token (after closing symbol),
@@ -262,9 +247,9 @@ public class LazyByteStreamParser {
 	 * After this method the cursor should be at the next space symbol, if any
 	 * @return
 	 */
-	private JSONTreeNode parseNameValuePair(boolean lazy)throws IOException{
+	private JSONNode parseNameValuePair(boolean lazy)throws IOException{
 		if(DEBUG){
-			System.out.println(addTab() + "Entered parseNameValuePair");
+			System.out.println("Entered parseNameValuePair");
 		}
 		String name = parseString(false);
 		if(curChar != ':'){
@@ -272,42 +257,47 @@ public class LazyByteStreamParser {
 					+ "name and value in an object");
 		}
 		moveToNextNonspaceChar();
-		JSONTreeNode ret = parseValue(name, lazy);
+		JSONNode ret = parseValue(name);
 		if(DEBUG){
-			System.out.println(removeTab() + "Done with parseNameValuePair: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseNameValuePair: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
 		return ret;
 	}
 	
-	public void loadNodeChildren(JSONTreeNode node) throws IOException{
+	public void loadNodeChildren(JSONNode node) throws IOException{
 		reader.getToPosition(node.getFilePosition());
 		moveToNextChar();
-		if(node.getType() == JSONTreeNode.TYPE_ARRAY){
+		if(node.getType() == JSONNode.TYPE_ARRAY){
 			parseArray(node, false);
-		} else if(node.getType() == JSONTreeNode.TYPE_OBJECT){
+		} else if(node.getType() == JSONNode.TYPE_OBJECT){
 			parseObject(node, false);
 		}
 		// TODO: full loading for Strings
 	}
 	/**
-	 * Parse a value, whatever it is
+	 * Parse a value, whatever it is.
 	 * After this method the cursor should be at the next symbol, if any 
 	 * @return
 	 */
-	private JSONTreeNode parseValue(String name, boolean lazy) throws IOException{
+	private JSONNode parseValue(String name) throws IOException{
 		if(DEBUG){
-			System.out.println(addTab() + "Entered parseValue");
+			System.out.println("Entered parseValue");
 		}
-		lazy = isLazyLoad && lazy;
-		JSONTreeNode ret = null;
+		JSONNode ret = null;
 		if(curChar == '{'){
-			ret = parseObject(name, lazy);
+			ret = new JSONNode(JSONNode.TYPE_OBJECT, name);
+			ret.setIsFullyLoaded(false);
+			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
+			moveToTheEndOfToken('{', '}');
 		} else if(curChar == '['){
-			ret = parseArray(name, lazy);
+			ret = new JSONNode(JSONNode.TYPE_ARRAY, name);
+			ret.setIsFullyLoaded(false);
+			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
+			moveToTheEndOfToken('[', ']');
 		} else if(curChar == '\"'){
 			long strPos = reader.getFilePosition();
-			ret = new JSONTreeNode(JSONTreeNode.TYPE_STRING, name, parseString(lazy), level);
-			ret.setFilePosition(strPos);
+			ret = new JSONNode(JSONNode.TYPE_STRING, name, parseString(true));
+			ret.setFilePosition(strPos-1);
 		} else if(curChar == 't'){
 			ret = parseKeyword(name, KEYWORD_TRUE);
 		} else if(curChar == 'f'){
@@ -321,13 +311,13 @@ public class LazyByteStreamParser {
 //			moveToNextNonspaceChar();
 //		}
 		if(DEBUG){
-			System.out.println(removeTab() + "Done with parseValue: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseValue: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
 		return ret;
 	}
-	private JSONTreeNode parseNumber(String name) throws IOException{
+	private JSONNode parseNumber(String name) throws IOException{
 		if(DEBUG){
-			System.out.println(addTab() + "Entered parseNumber");
+			System.out.println("Entered parseNumber");
 		}
 		StringBuilder sb = new StringBuilder();
 		while(curChar != ',' && curChar != '}' && curChar != ']' && !Character.isWhitespace(curChar)){
@@ -337,17 +327,17 @@ public class LazyByteStreamParser {
 		String number = sb.toString();
 		if(patternNumber.matcher(number).matches()){
 			if(DEBUG){
-				System.out.println(removeTab() + "Done with parseNumber: "+reader.getFilePosition()+", '"+curChar+"'");
+				System.out.println("Done with parseNumber: "+reader.getFilePosition()+", '"+curChar+"'");
 			}
-			return new JSONTreeNode(JSONTreeNode.TYPE_NUMBER, name, number, level);
+			return new JSONNode(JSONNode.TYPE_NUMBER, name, number);
 		}
 		throwUnexpectedSymbolException(number + " at pos "+
 		(reader.getFilePosition()-number.length())+" is not a number");
 		return null;
 	}
-	private JSONTreeNode parseKeyword(String name, String keyword)throws IOException{
+	private JSONNode parseKeyword(String name, String keyword)throws IOException{
 		if(DEBUG){
-			System.out.println(addTab() + "Entered parseKeyword");
+			System.out.println("Entered parseKeyword");
 		}
 		for(int i=0; i< keyword.length(); i++){
 			if(curChar != keyword.charAt(i)){
@@ -356,9 +346,9 @@ public class LazyByteStreamParser {
 			moveToNextChar();
 		}
 		if(DEBUG){
-			System.out.println(removeTab() + "Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return new JSONTreeNode(JSONTreeNode.TYPE_KEYWORD, name, keyword, level);
+		return new JSONNode(JSONNode.TYPE_KEYWORD, name, keyword);
 	}
 	
 	private void throwUnexpectedSymbolException(String msg){
@@ -377,7 +367,7 @@ public class LazyByteStreamParser {
 	 */
 	private String parseString(boolean lazy) throws IOException{
 		if(DEBUG){
-			System.out.println(addTab() + "Entered parseString");
+			System.out.println("Entered parseString");
 		}
 		if(curChar != '"'){
 			throwUnexpectedSymbolException("String does not start with '\"'");
@@ -432,7 +422,7 @@ public class LazyByteStreamParser {
 			moveToNextChar();
 		}
 		if(DEBUG){
-			System.out.println(removeTab() + "Done with parseString (lazy = " + lazy + "): " + reader.getFilePosition()
+			System.out.println("Done with parseString (lazy = " + lazy + "): " + reader.getFilePosition()
 					+ ", '" + curChar + "'");
 		}
 		
