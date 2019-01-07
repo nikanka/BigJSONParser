@@ -6,25 +6,32 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
+ * Parse a JSON text (provided by a file reader) upon request. I.e. it can parse a 
+ * top level node (assuming the file cursor is at the beginning of this node) and
+ * it can parse child nodes starting at a given position without parsing their 
+ * child nodes. In case of a String node with a long text, load only first 
+ * <code>stringDisplayLength</code> symbols.
+ * <br>
+ * Text is supposed to be in UTF-8 format, i.e. String node value can contain 
+ * several-byte chars.
+ * <br><br>
  * Grammar in EBNF:
- * 
- * object	: '{' { STRING : value [, STRING : value] } '}'
- * array	: '['  {value [, value] } ']'
- * value	: STRING | NUMBER | object | array | 'true' | 'false' | 'null'
- * STRING	: '"' {}   '"' 
- * NUMBER	:
+ * <br>
+ * object	: '{' { STRING : value [, STRING : value] } '}'<br>
+ * array	: '['  {value [, value] } ']'<br>
+ * value	: STRING | NUMBER | object | array | 'true' | 'false' | 'null'<br>
+ * STRING	: '"' {}   '"' <br>
+ * NUMBER	:<br>
  * @author nikanka
  *
  */
 public class LazyByteStreamParser {
-	public static final String KEYWORD_TRUE = "true";
-	public static final String KEYWORD_FALSE = "false";
-	public static final String KEYWORD_NULL = "null";
-	public final static int STRING_DISPLAY_LENGTH = 20;
-
-	
+	private static final String KEYWORD_TRUE = "true";
+	private static final String KEYWORD_FALSE = "false";
+	private static final String KEYWORD_NULL = "null";
 	private static final boolean DEBUG = false; 
 	
+	private int stringDisplayLength = 4;
 	private UTF8CharFileReader reader;
 	private char curChar;
 	
@@ -50,36 +57,43 @@ public class LazyByteStreamParser {
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 		JSONNode root = parser.parseTopLevel();
+		for(JSONNode node: parser.loadChildrenAtPosition(root.getFilePosition())){
+			System.out.println(node.getName());
+		}
 //		root.print(System.out);
 //		System.out.flush();
 		
 		
 	}
-	public LazyByteStreamParser(String fileName) throws IOException{
+	protected LazyByteStreamParser(String fileName) throws IOException{
 		reader = new UTF8CharFileReader(fileName);
 	}
-	public JSONNode parseTopLevel() throws IOException{
+	protected JSONNode parseTopLevel() throws IOException{
 		if(DEBUG){
-			System.out.println("Entered parseIntoFullTree");
-			
+			System.out.println("Entered parseTopLevel. File pos = " + reader.getFilePosition());	
 		}
+		// TODO: check that the file cursor is at the beginning of the file?
 		moveToNextNonspaceChar();
-		JSONNode root = parseValue(null);
-//		String rootName = "JSON";
-//		if(curChar == '{'){
-//			root = parseObject(rootName);
-//		} else if(curChar == '['){
-//			root = parseArray(rootName);
-//		} else {
-//			throwUnexpectedSymbolException("Unexpected symbol: should be '{' or '['");
-//		}
-		
+		JSONNode root = parseValue(null);		
 		if(DEBUG){
-			System.out.println("Done with parseIntoFullTree: "+reader.getFilePosition()+", '"+curChar+"'");
+			System.out.println("Done with parseTopLevel: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
 		
 		return root;
 	}
+	protected List<JSONNode> loadChildrenAtPosition(long filePos) throws IOException{
+		reader.getToPosition(filePos);
+		moveToNextChar();
+		if(curChar == '['){
+			return parseArray();
+		} else if(curChar == '{'){
+			return parseObject();
+		} 
+		throwUnexpectedSymbolException("Lazy load children: was expecting '[' or '{'");
+		return null;
+		// TODO: full loading for Strings
+	}
+
 	/**
 	 * Parse an array: '[' { value [, value] } ']' and create a new tree node.
 	 * If <code>lazy</code> is <code>true</code> does not parse array content.
@@ -92,13 +106,12 @@ public class LazyByteStreamParser {
 //		return parseArray(arrayNode, lazy);
 //	}
 	/**
-	 * Parse an array: '[' { value [, value] } ']' and put the data into provided 
-	 * <code>arrayNode</code>. If <code>lazy</code> is <code>true</code> does not parse array content.
+	 * Parse an array: '[' { value [, value] } ']' and return a list of array nodes.
 	 * In the beginning of the method the cursor should be at '['. 
 	 * After this method the cursor should be at the char following the ']' if any. 
 	 * @return
 	 */
-	private List<JSONNode> parseArray(JSONNode arrayNode, boolean lazy) throws IOException{
+	private List<JSONNode> parseArray() throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseArray");
 		}
@@ -133,7 +146,7 @@ public class LazyByteStreamParser {
 				moveToNextNonspaceChar();
 			} else {
 				throwUnexpectedSymbolException("Unexpected symbol between "
-						+ "values in an array");
+						+ "values in an array: '" + curChar + "'");
 			}
 			ind++;
 		}
@@ -154,9 +167,9 @@ public class LazyByteStreamParser {
 	 * Parse an object: '{' { string:value [, string:value] } '}'
 	 * In the beginning of the method the cursor should be at '{'.
 	 * After this method the cursor should be at the char following the '}' if any. 
-	 * @return
+	 * @return a list of named JSON nodes that are contained in this object
 	 */
-	private List<JSONNode> parseObject(JSONNode objNode, boolean lazy) throws IOException{
+	private List<JSONNode> parseObject() throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseObject");
 		}
@@ -204,43 +217,70 @@ public class LazyByteStreamParser {
 	}
 	/**
 	 * Moves the file cursor to the symbol just after the current token (after closing symbol),
-	 * If there are no more symbols, leaves it at the closing symbol. Ignores opening anf closing 
+	 * If there are no more symbols, leaves it at the closing symbol. Ignores opening and closing 
 	 * symbols within Strings. 
+	 * The cursor should be at (i.e. just before) the opening symbol in the beginning of the method.
 	 * @param openingChar
 	 * @param closingChar
 	 * @return file position where the cursor is
 	 * @throws IOException
 	 */
-	private long moveToTheEndOfToken(char openingChar, char closingChar)throws IOException{
+//	private long moveToTheEndOfToken(byte openingSymbol, byte closingSymbol)throws IOException{
+//		int opened = 1;
+//		boolean inString = false;
+//		byte prevByte = ' ';
+//		while(reader.hasNext()){
+//			byte b = reader.getNextByte();
+//			if(b == '\"'){
+//				if(!inString){
+//					inString = true;
+//				} else if(prevByte != '\\'){
+//					inString = false;
+//				}
+//			}
+//			if(!inString){
+//				if(b == closingSymbol){
+//					opened--;
+//				} else if(b == openingSymbol){
+//					opened++;
+//				}
+//			}
+//			if(opened == 0){
+//				if(reader.hasNext()){
+//					moveToNextChar();
+//				}
+//				return reader.getFilePosition();
+//			}
+//			prevByte = b;
+//		}
+//		return -1;
+//	}
+//	
+	
+	private long moveToTheEndOfToken(byte openingSymbol, byte closingSymbol)throws IOException{
 		int opened = 1;
-		boolean inString = false;
-		char prevChar = ' ';
 		while(reader.hasNext()){
-			char ch = reader.getNextChar();
-			if(ch == '\"'){
-				if(!inString){
-					inString = true;
-				} else if(prevChar != '\\'){
-					inString = false;
-				}
+			byte b = reader.getNextByte();
+			if(b == '\"'){// String starts
+				reader.skipTheString();
+				continue;
 			}
-			if(!inString){
-				if(ch == closingChar){
-					opened--;
-				} else if(ch == openingChar){
-					opened++;
-				}
+			if(b == closingSymbol){
+				opened--;
+			} else if(b == openingSymbol){
+				opened++;
 			}
+			
 			if(opened == 0){
 				if(reader.hasNext()){
 					moveToNextChar();
 				}
 				return reader.getFilePosition();
 			}
-			prevChar = ch;
 		}
 		return -1;
 	}
+	
 	/**
 	 * Parse "string":value
 	 * In the beginning of the method the cursor should be at the first '"'
@@ -263,17 +303,9 @@ public class LazyByteStreamParser {
 		}
 		return ret;
 	}
-	
-	public void loadNodeChildren(JSONNode node) throws IOException{
-		reader.getToPosition(node.getFilePosition());
-		moveToNextChar();
-		if(node.getType() == JSONNode.TYPE_ARRAY){
-			parseArray(node, false);
-		} else if(node.getType() == JSONNode.TYPE_OBJECT){
-			parseObject(node, false);
-		}
-		// TODO: full loading for Strings
-	}
+//	public void loadNodeChildren(JSONNode node) throws IOException{
+//		
+//	}
 	/**
 	 * Parse a value, whatever it is.
 	 * After this method the cursor should be at the next symbol, if any 
@@ -288,12 +320,12 @@ public class LazyByteStreamParser {
 			ret = new JSONNode(JSONNode.TYPE_OBJECT, name);
 			ret.setIsFullyLoaded(false);
 			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken('{', '}');
+			moveToTheEndOfToken((byte)'{', (byte)'}');
 		} else if(curChar == '['){
 			ret = new JSONNode(JSONNode.TYPE_ARRAY, name);
 			ret.setIsFullyLoaded(false);
 			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken('[', ']');
+			moveToTheEndOfToken((byte)'[', (byte)']');
 		} else if(curChar == '\"'){
 			long strPos = reader.getFilePosition();
 			ret = new JSONNode(JSONNode.TYPE_STRING, name, parseString(true));
@@ -374,15 +406,20 @@ public class LazyByteStreamParser {
 		}
 		StringBuilder sb = new StringBuilder();
 		moveToNextChar();
-		for(int i = 0; i < STRING_DISPLAY_LENGTH; i++){
-			if(reader.getReadingMode() != UTF8CharFileReader.MODE_READING_UTF8_CHARS){
+		while(true){
+			sb.append(curChar);
+			if(reader.getReadingMode() == UTF8CharFileReader.MODE_READING_CLOSING_QUOTE){
+				moveToNextChar();// reading closing quote
 				break;
 			}
-			sb.append(curChar);
+			if(lazy && sb.length() == stringDisplayLength){
+				break;
+			}
 			moveToNextChar();
 		}
-		while(reader.getReadingMode() != UTF8CharFileReader.MODE_READING_ASCII_CHARS){
-			moveToNextChar();
+		if(reader.getReadingMode() != UTF8CharFileReader.MODE_READING_ASCII_CHARS){
+			// in case we ended reading and did not reach the closing quote (due to lazy reading)
+			reader.skipTheString();
 		}
 			
 		

@@ -1,9 +1,7 @@
 package main.java.parser;
 
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
@@ -11,12 +9,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
-import java.util.Arrays;
-
-import javax.management.RuntimeErrorException;
 
 public class UTF8FileReader {
 	public static final int bufferSize = 8192;
+	
+	boolean DEBUG = true;
 	
 	protected long filePos = 0;
 	private FileInputStream input;
@@ -98,6 +95,10 @@ public class UTF8FileReader {
 //		}
 		readBytes();
 	}
+	/**
+	 * Return current file position in bytes.
+	 * @return
+	 */
 	public long getFilePosition(){
 		return filePos;
 	}
@@ -236,6 +237,7 @@ public class UTF8FileReader {
 	 * @return a String that was read (without quotes)
 	 * @throws IOException
 	 */
+	//TODO: which method for loading Strings to use: this or LazyByteStreamParser.parseString()???
 	public String readString()throws IOException{
 		StringBuilder sb = new StringBuilder();
 		boolean lastCharIsBackSlash = false;
@@ -260,9 +262,17 @@ public class UTF8FileReader {
 	}
 	
 
-	
+	/**
+	 * Fill the char buffer with chars starting from current position and up
+	 * to an unmasked quote (or the end of the char buffer).
+	 * 
+	 * @param prevCharWasBackSlash
+	 * @return the number of remaining elements of the char buffer (from 
+	 * the current position and up to its limit)
+	 * @throws IOException
+	 */
 	protected int fillCharBufferUpToQuote(boolean prevCharWasBackSlash) throws IOException{
-		System.out.println("Read chars up to quote from : "+ byteBuffer);
+		if(DEBUG) System.out.println("Read chars up to quote from : "+ byteBuffer);
 		charBuffer.clear();
 		boolean eof = false;
 //		int byteOldLimit = byteBuffer.limit();
@@ -282,19 +292,19 @@ public class UTF8FileReader {
 				eof = true;
 			}
 			CoderResult cr = decoder.decode(byteBuffer, charBuffer, eof);
-			System.out.println("\t\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
+			if (DEBUG) System.out.println("\t\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
 			// update file position based on the number of read and decoded bytes
 			filePos += (byteBuffer.position() - posBeforeDecoding); 
 			if (cr.isUnderflow()) {
-				System.out.println("\t\tUnderflow, eof = "+eof);
-				 if (eof){
+				if (DEBUG) System.out.println("\t\tUnderflow, eof = "+eof);
+				if (eof){
 					 // restore old byte array limit so that I can read next bytes from it
 					 // (without decoding)
 					 byteBuffer.limit(byteOldLimit);
-					 System.out.println("EOF: "+byteBuffer);
+					 if (DEBUG) System.out.println("EOF: "+byteBuffer);
 					 break;
-				 }
-				 assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();
+				}
+				assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();
 					
 				if (!charBuffer.hasRemaining()){
 					break;
@@ -302,7 +312,7 @@ public class UTF8FileReader {
 				// if ((cb.position() > 0) && !inReady())
 				// break; // Block at most once
 				escaped = byteBuffer.get(byteBuffer.position()-1) == '\\';
-				System.out.println("\t\tRead chars: byte reload (escaped = "+escaped+")");
+				if (DEBUG) System.out.println("\t\tRead chars: byte reload (escaped = "+escaped+")");
 				
 				int n = readBytes();
 				if (n < 0) {
@@ -314,7 +324,7 @@ public class UTF8FileReader {
 				}
 				 continue;
 			} else if (cr.isOverflow()) {
-				System.out.println("Overflow");
+				if (DEBUG) System.out.println("Overflow");
 				assert charBuffer.position() > 0;
 				// restore old byte array limit 
 				// so that I can read next bytes from it when decoding chars into 
@@ -324,22 +334,19 @@ public class UTF8FileReader {
 				break;
 			} else {
 				 byteBuffer.limit(byteOldLimit);
-				 System.err.println("Character coding exception at file pos ~ "+filePos);
+				 if (DEBUG) System.err.println("Character coding exception at file pos ~ "+filePos);
 				 cr.throwException();
 			}
 		}
-
 		 if (eof) {
 		 // ## Need to flush decoder
 			 decoder.reset();
 		 }
-		
-		 
-//		filePos += re
 		if (charBuffer.position() == 0 && !eof) {
 			throw new RuntimeException("No chars were decoded from byte buffer");
 		}
 		charBuffer.flip();
+		
 		return charBuffer.remaining();
 		
 	}

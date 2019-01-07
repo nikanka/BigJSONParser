@@ -47,37 +47,54 @@ public class UTF8CharFileReader extends UTF8FileReader{
 	public int getReadingMode(){
 		return currentMode;
 	}
-	public char getNextChar() throws IOException{
-		if(!hasNext){
-			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
+	/**
+	 * Move the cursor to the end of a String, i.e. to the closing quote. 
+	 * It is assumed that before entering the method the cursor is within 
+	 * a String. 
+	 * @throws IOException
+	 */
+	public void skipTheString() throws IOException{
+		currentMode = MODE_READING_ASCII_CHARS;
+		byte prevByte = ' ';
+		while(true){
+			byte b = getNextByte();
+			if(b == '\"' && prevByte != '\\'){
+				break;
+			}
+			prevByte = b;
 		}
+	}
+	public char getNextChar() throws IOException{
+//		if(!hasNext){
+//			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
+//		}
 		char ret = 1;	
 		if(currentMode == MODE_READING_CLOSING_QUOTE){
 			ret = (char)getNextByte();
 			assert ret == '\"': "'"+ret+"'";
 			currentMode = MODE_READING_ASCII_CHARS;
-			System.out.println("CHANGE MODE TO READING ASCII");
+			if (DEBUG) System.out.println("CHANGE MODE TO READING ASCII");
 		} else if(currentMode == MODE_READING_ASCII_CHARS){
 			ret = (char)getNextByte();
 			if(ret == '\"'){
 				// checking for the backslash at the prev pos is not necessary as 
 				// it has an escape meaning only within Strings
-				System.out.println("GetNextChar  char buffer initial load");
+				if (DEBUG) System.out.println("GetNextChar  char buffer initial load");
 				int n = fillCharBufferUpToQuote(false);
 				if(n==0){
 					currentMode = MODE_READING_CLOSING_QUOTE;
-					System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+					if (DEBUG) System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
 				}
 				if(n > 0){
 					currentMode = MODE_READING_UTF8_CHARS;
-					System.out.println("CHANGE MODE TO READING UTF8: "+
-					new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+					if (DEBUG) System.out.println("CHANGE MODE TO READING UTF8: "+
+							new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
 				}
 			}
 		} else {
 			ret = charBuffer.get();
 			if(charBuffer.position() == charBuffer.limit()){
-				System.out.println("GetNextChar  char buffer reload");
+				if (DEBUG) System.out.println("GetNextChar  char buffer reload");
 				int n = fillCharBufferUpToQuote(ret == '\\');
 				if(n == 0){// end of string
 					currentMode = MODE_READING_CLOSING_QUOTE;
