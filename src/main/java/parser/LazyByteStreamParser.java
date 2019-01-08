@@ -32,7 +32,7 @@ public class LazyByteStreamParser {
 	private static final boolean DEBUG = false; 
 	
 	private int stringDisplayLength = 4;
-	private UTF8CharFileReader reader;
+	private UTF8FileReader reader;
 	private char curChar;
 	
 	private Pattern patternNumber = Pattern.compile("^-?(0|([1-9][0-9]*))(.[0-9]+)?([eE][+-]?[0-9]+)?$");
@@ -66,7 +66,7 @@ public class LazyByteStreamParser {
 		
 	}
 	protected LazyByteStreamParser(String fileName) throws IOException{
-		reader = new UTF8CharFileReader(fileName);
+		reader = new UTF8FileReader(fileName);
 	}
 	protected JSONNode parseTopLevel() throws IOException{
 		if(DEBUG){
@@ -408,8 +408,8 @@ public class LazyByteStreamParser {
 		moveToNextChar();
 		while(true){
 			sb.append(curChar);
-			if(reader.getReadingMode() == UTF8CharFileReader.MODE_READING_CLOSING_QUOTE){
-				moveToNextChar();// reading closing quote
+			if(reader.getReadingMode() == UTF8FileReader.MODE_READING_CLOSING_QUOTE){
+				moveToNextChar();// reading closing quote will change to reading ASCII
 				break;
 			}
 			if(lazy && sb.length() == stringDisplayLength){
@@ -417,7 +417,7 @@ public class LazyByteStreamParser {
 			}
 			moveToNextChar();
 		}
-		if(reader.getReadingMode() != UTF8CharFileReader.MODE_READING_ASCII_CHARS){
+		if(reader.getReadingMode() != UTF8FileReader.MODE_READING_ASCII_CHARS){
 			// in case we ended reading and did not reach the closing quote (due to lazy reading)
 			reader.skipTheString();
 		}

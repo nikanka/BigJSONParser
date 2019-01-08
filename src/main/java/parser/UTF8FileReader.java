@@ -9,10 +9,15 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.util.Arrays;
 
 public class UTF8FileReader {
 	public static final int bufferSize = 8192;
+	public static final int MODE_READING_ASCII_CHARS = 0;
+	public static final int MODE_READING_UTF8_CHARS = 1;
+	public static final int MODE_READING_CLOSING_QUOTE = 2;
 	
+	private int currentMode = MODE_READING_ASCII_CHARS;
 	boolean DEBUG = true;
 	
 	protected long filePos = 0;
@@ -85,16 +90,16 @@ public class UTF8FileReader {
 		fileChannel = input.getChannel();
 		charBuffer = CharBuffer.allocate(bufferSize);
 		byteBuffer = ByteBuffer.allocate(bufferSize);
-//		System.out.println("Init buffer: "+byteBuffer.toString()+" offset = "+byteBuffer.arrayOffset());
-		
 		byteBuffer.flip();
 		charBuffer.flip();
-//		System.out.println("After flip: "+byteBuffer.toString()+" offset = "+byteBuffer.arrayOffset());
-//		if(readBytes()<0){
-//			hasNext = false;
-//		}
 		readBytes();
 	}
+	
+	
+	public int getReadingMode(){
+		return currentMode;
+	}
+
 	/**
 	 * Return current file position in bytes.
 	 * @return
@@ -102,32 +107,41 @@ public class UTF8FileReader {
 	public long getFilePosition(){
 		return filePos;
 	}
-	protected int readBytes(/*long limitFilePos*/) throws IOException{
-//		long toLoad = -1;
-//		if(limitFilePos >= 0){
-//			if(limitFilePos < filePos){
-//				throw new IllegalArgumentException("Limit position ("+limitFilePos+") "
-//					+ "cannot be less than current file position ("+filePos+") ");
-//			}
-//			long toRead = limitFilePos - filePos;
-//			toLoad = toRead - byteBuffer.remaining();
-//			if(toLoad <=0 ){
-//				byteBuffer.limit(byteBuffer.position()+(int)toRead);
-//				return byteBuffer.remaining();
-//			}
-//		}
-//		System.out.println("Byte buffer before reading: "+byteBuffer);
+	
+	/**
+	 * Set this file channel to a position prior to <code>pos</code>, so that the next byte that is read
+	 * is at the position <code>pos</code> of the file.
+	 * @param pos
+	 * @return
+	 * @throws IOException
+	 */
+	boolean getToPosition(long pos)throws IOException{
+		System.out.println("get to pos "+pos);
+		filePos = pos;
+		fileChannel.position(pos);
+//		nextByte = input.read();
+//		return nextByte >= 0;
+		// reset buffer
+		byteBuffer.limit(byteBuffer.capacity());
+		// set position  to limit, so that compact() in readBytes() set position to 0
+		// without copying any bytes from the buffer
+		byteBuffer.position(byteBuffer.limit());
+		hasNext = readBytes()>=0;
+		return hasNext;
+	}
+
+	/**
+	 * Read bytes from file into byte buffer.
+	 * @return
+	 * @throws IOException
+	 */
+	private int readBytes() throws IOException{
 		byteBuffer.compact();
-//		System.out.println("After compact: "+byteBuffer.toString()+" offset = "+byteBuffer.arrayOffset());
 		int pos = byteBuffer.position();
 		int rem = byteBuffer.remaining();
-//		if(toLoad > 0 && toLoad < rem){
-//			byteBuffer.limit(pos + (int)toLoad);
-//			rem = byteBuffer.remaining();
-//		}
 		assert(rem >0): rem;
 		
-		System.out.println("Start read from file pos "+fileChannel.position()+
+		if(DEBUG) System.out.println("Start read from file pos "+fileChannel.position()+
 				" ("+filePos+")");
 		int read = input.read(byteBuffer.array(), byteBuffer.arrayOffset() + pos, rem);
 		if(read < 0){
@@ -141,114 +155,111 @@ public class UTF8FileReader {
 		}
 		byteBuffer.position(pos+read);
 		byteBuffer.flip();
-		System.out.println("Bytes read from file: "+read+ " bytes");
-		System.out.println("Byte buffer after reading: "+byteBuffer);
+		if(DEBUG) {
+			System.out.println("Bytes read from file: "+read+ " bytes");
+			System.out.println("Byte buffer after reading: "+byteBuffer);
+		}
 		
 		return byteBuffer.remaining();
 	}
 	
-
-	
-//	protected String readUTF8String(long fromFilePos, long toFilePos) throws IOException{
-//		if(toFilePos <= fromFilePos){
-//			throw new IllegalArgumentException("To ("+toFilePos+") is less or equal to"
-//					+ " from ("+fromFilePos+")");
-//		}
-//		long len = toFilePos - fromFilePos;
-//		if(len == 0){
-//			return "";
-//		}
-//		if(len > Integer.MAX_VALUE){
-//			throw new RuntimeException("String to be read is too big. File byte coordinates: "
-//					+ "["+fromFilePos+"; "+toFilePos+")");
-//		}
-//		fileChannel.position(fromFilePos);
-//		byte[] byteArr = new byte[(int)len];
-//		int read = input.read(byteArr);
-//		if(read < 0){
-//			return null;
-//		}
-//		if(read == 0) {
-//			throw new IOException("Input stream returned 0 bytes");
-//		}
-//		CharBuffer charBuf = CharBuffer.allocate(read);
-//		CoderResult cr = decoder.decode(ByteBuffer.wrap(byteArr, 0, read), charBuf, true);
-//		assert cr != CoderResult.OVERFLOW: cr;// each byte can be decoded in AT MOST one char
-//		if(cr == CoderResult.UNDERFLOW){
-//			return new String(charBuf.array(), 0, charBuf.position());
-//		} else {
-//			cr.throwException();
-//			return null;
-//		}
-//	}
-//
-	private int scanForClosingQuote(boolean escaped) throws IOException {
-		if(byteBuffer.remaining() == 0){
-			return -1;
-		}
-		assert byteBuffer.arrayOffset()==0: byteBuffer.arrayOffset();
-		byte[] arr = byteBuffer.array();
-		int start = byteBuffer.position();
-		if(!escaped && arr[start] == '"'){
-			return start;
-		}
-		int limit = byteBuffer.limit();
-		for(int i = start + 1; i < limit; i++){
-			if(arr[i] == '"' && arr[i-1] != '\\'){
-				return i;
-			}
-		}
-		return -1;
-	}
-//	/**
-//	 * Decode characters from byte input stream from current position 
-//	 * until a quote is met. The validity of the String is checked
-//	 * @return the length of the string
-//	 */
-//	int initialStringCheck(){
-//		//TODO
-//		// first scan to find a quote
-//		return 0;
-//	}
 	/**
-	 * Decode characters from byte input stream for specified range.
-	 * 
-	 * @param from start file pos of bytes to decode (including) 
-	 * @param to end file pos of bytes to decode (exclusive)
-	 * @return the decoded string
+	 * Check if there are bytes left to read
+	 * @return
 	 */
-//	String readString(long from, long to)throws IOException{
-//		getToPosition(from);
-//		StringBuilder sb = new StringBuilder();
-//		for(;;){
-//			int n = readCharsUpToQuote();
-//			sb.append(charBuffer.array(), 0, n);
-//			if(n < charBuffer.capacity()){
-//				break;
-//			}
-//		}
-//		return sb.toString();
-//		return null;
-//	}
+	public boolean hasNext(){
+//		return byteBuffer.position()<= byteBuffer;
+		return hasNext; 
+	}
+
 	/**
-	 * Read and return a String starting at current file position and up to an 
+	 * Return the next byte from the file
+	 * @return
+	 * @throws IOException
+	 */
+	private byte getNextByte() throws IOException{
+		if(!hasNext()){
+			throw new IOException("Unexpected end of stream at pos " + filePos);
+		}
+		byte ret = byteBuffer.get();
+		filePos++;
+		if(byteBuffer.position() == byteBuffer.limit()){
+			System.out.println("GetNextByte buffer reload");
+			readBytes();
+		}
+		return ret;
+	}
+	
+	/**
+	 * Provide the next char from a file. Keep track of the current reading mode: reading 
+	 * String (may contain UTF-8 multy-byte characters), reading closing quote (end of reading
+	 * String) and reading everything else that should be in ASCII, i.e. one byte per character.
+	 * @return next char (either single- or multy-byte depending on the reading mode)
+	 * @throws IOException
+	 */
+	public char getNextChar() throws IOException{
+//		if(!hasNext){
+//			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
+//		}
+		char ret = 1;	
+		if(currentMode == MODE_READING_CLOSING_QUOTE){
+			ret = (char)getNextByte();
+			assert ret == '\"': "'"+ret+"'";
+			currentMode = MODE_READING_ASCII_CHARS;
+			if (DEBUG) System.out.println("CHANGE MODE TO READING ASCII");
+		} else if(currentMode == MODE_READING_ASCII_CHARS){
+			ret = (char)getNextByte();
+			if(ret == '\"'){
+				// checking for the backslash at the prev pos is not necessary as 
+				// it has an escape meaning only within Strings
+				if (DEBUG) System.out.println("GetNextChar  char buffer initial load");
+				int n = fillCharBufferUpToQuote(false);
+				if(n==0){
+					currentMode = MODE_READING_CLOSING_QUOTE;
+					if (DEBUG) System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+				}
+				if(n > 0){
+					currentMode = MODE_READING_UTF8_CHARS;
+					if (DEBUG) System.out.println("CHANGE MODE TO READING UTF8: "+
+							new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+				}
+			}
+		} else if(currentMode == MODE_READING_UTF8_CHARS){
+			// TODO: handle a situation when there are bytes left to read but they do not 
+			// give any meaningful character (in case of multi-byte chars)
+			ret = charBuffer.get();
+			if(charBuffer.position() == charBuffer.limit()){
+				if (DEBUG) System.out.println("GetNextChar  char buffer reload");
+				int n = fillCharBufferUpToQuote(ret == '\\');
+				if(n == 0){// end of string
+					currentMode = MODE_READING_CLOSING_QUOTE;
+					if(DEBUG)System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+				}
+			}
+		} else {
+			throw new RuntimeException("Invalid reading mode: " + currentMode);
+		}
+		
+		return ret;
+	}	
+
+
+	/**
+	 * Read and return a whole String starting at current file position and up to an 
 	 * unmasked quote. It is assumed the the opening quote has already been read.
-	 * The file cursor is at the closing quote after this method.
+	 * The file cursor is at the closing quote after this method.<br>
+	 * This method should be used when the entire String is to be read.
 	 * @return a String that was read (without quotes)
 	 * @throws IOException
 	 */
-	//TODO: which method for loading Strings to use: this or LazyByteStreamParser.parseString()???
 	public String readString()throws IOException{
 		StringBuilder sb = new StringBuilder();
 		boolean lastCharIsBackSlash = false;
 		for(;;){
-//			System.out.println("byte buff pos before: "+byteBuffer.position());
 			int n = fillCharBufferUpToQuote(lastCharIsBackSlash);
 			assert charBuffer.arrayOffset()==0: charBuffer.arrayOffset();
 			char[] charArr = charBuffer.array();
 			sb.append(charArr, 0, n);
-			//System.out.println(sb.toString());
-//			System.out.println("byte buff pos after: "+byteBuffer.position());
 			System.out.println(
 					"Read " + n + " chars: CharBuffer [pos=" + charBuffer.position() + " lim=" + charBuffer.limit()
 							+ " cap=" + charBuffer.capacity() + "]\n" + byteBuffer + " (filePos = " + filePos + ")");
@@ -257,10 +268,28 @@ public class UTF8FileReader {
 			}
 			lastCharIsBackSlash = charArr[n-1]=='\\';
 		}
-		System.out.println("End of readStringTest: "+byteBuffer+" (filePos = "+filePos+")");
+		if(DEBUG) System.out.println("End of readStringTest: "+byteBuffer+" (filePos = "+filePos+")");
 		return sb.toString();
 	}
 	
+	/**
+	 * Move the cursor to the end of a String, i.e. to the closing quote. 
+	 * It is assumed that before entering the method the cursor is within 
+	 * a String. 
+	 * @throws IOException
+	 */
+	public void skipTheString() throws IOException{
+		currentMode = MODE_READING_ASCII_CHARS;
+		byte prevByte = ' ';
+		while(true){
+			byte b = getNextByte();
+			if(b == '\"' && prevByte != '\\'){
+				break;
+			}
+			prevByte = b;
+		}
+	}
+
 
 	/**
 	 * Fill the char buffer with chars starting from current position and up
@@ -271,7 +300,7 @@ public class UTF8FileReader {
 	 * the current position and up to its limit)
 	 * @throws IOException
 	 */
-	protected int fillCharBufferUpToQuote(boolean prevCharWasBackSlash) throws IOException{
+	private int fillCharBufferUpToQuote(boolean prevCharWasBackSlash) throws IOException{
 		if(DEBUG) System.out.println("Read chars up to quote from : "+ byteBuffer);
 		charBuffer.clear();
 		boolean eof = false;
@@ -351,231 +380,25 @@ public class UTF8FileReader {
 		
 	}
 	
-	
-	public byte getNextByte() throws IOException{
-		if(!hasNext()){
-			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
+	private int scanForClosingQuote(boolean escaped) throws IOException {
+		if(byteBuffer.remaining() == 0){
+			return -1;
 		}
-//		byte ret =  (byte)nextByte;
-//		nextByte = input.read();
-//		curPos++;
-		byte ret = byteBuffer.get();
-		filePos++;
-		if(byteBuffer.position() == byteBuffer.limit()){
-			System.out.println("GetNextByte buffer reload");
-			readBytes();
-//			if(readBytes()<0){
-//				hasNext = false;
-//			}
+		assert byteBuffer.arrayOffset()==0: byteBuffer.arrayOffset();
+		byte[] arr = byteBuffer.array();
+		int start = byteBuffer.position();
+		if(!escaped && arr[start] == '"'){
+			return start;
 		}
-		return ret;
-	}
-	
-	public boolean hasNext(){
-//		return byteBuffer.position()<= byteBuffer;
-		return hasNext; 
-	}
-
-	
-//	public char getNextChar() throws IOException{
-//		if(!hasNext()){
-//			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
-//		}
-//		
-//		char ret = charBuffer.get();
-//		
-//		return ret;
-//	}
-	
-	
-	
-	/*public int getNextChar(boolean detectQuote) throws IOException {
-		if (haveLeftoverChar) {
-			haveLeftoverChar = false;
-			return leftoverChar;
-		}
-		charBuffer.clear();
-
-		boolean eof = false;
-		for (;;) {
-			int posBeforeDecoding = byteBuffer.position();
-			CoderResult cr = decoder.decode(byteBuffer, charBuffer, eof);
-			int readByteNum = byteBuffer.position() - posBeforeDecoding; 
-			if (cr.isUnderflow()) {
-				// if (eof)
-				// break;
-				if (!charBuffer.hasRemaining())
-					break;
-				// if ((cb.position() > 0) && !inReady())
-				// break; // Block at most once
-				int n = readBytes();
-				if (n < 0) {
-					eof = true;
-					// if ((cb.position() == 0) && (!byteBuffer.hasRemaining()))
-					// break;
-//					decoder.reset();
-				}
-				 continue;
-			} else if (cr.isOverflow()) {
-				// assert cb.position() > 0;
-				if(detectQuote){
-					if(charBuffer.get(0) == '"' && prevChar != '\\'){
-						closingQuoteFilePos = filePos;
-					}
-				}
-				break;
-			} else {
-				cr.throwException();
-			}
-		}
-
-		 if (eof) {
-		 // ## Need to flush decoder
-		 decoder.reset();
-		 }
-		
-
-//		filePos += re
-		if (charBuffer.position() == 0) {
-			if (eof) {
-				return -1;
-			} else {
-				throw new RuntimeException("No chars were decoded from byte buffer");
-			}
-		}
-		if (charBuffer.position() == 2) {
-			leftoverChar = charBuffer.get(1);
-			haveLeftoverChar = true;
-		}
-
-		return charBuffer.get(0);
-
-	}
-
-    int implRead(char[] cbuf, int off, int end) throws IOException {
-
-        // In order to handle surrogate pairs, this method requires that
-        // the invoker attempt to read at least two characters.  Saving the
-        // extra character, if any, at a higher level is easier than trying
-        // to deal with it here.
-        assert (end - off > 1);
-
-        CharBuffer cb = CharBuffer.wrap(cbuf, off, end - off);
-        if (cb.position() != 0)
-        // Ensure that cb[0] == cbuf[off]
-        cb = cb.slice();
-
-        boolean eof = false;
-        for (;;) {
-        CoderResult cr = decoder.decode(byteBuffer, cb, eof);
-        if (cr.isUnderflow()) {
-            if (eof)
-                break;
-            if (!cb.hasRemaining())
-                break;
-//            if ((cb.position() > 0) && !inReady())
-//                break;          // Block at most once
-            int n = readBytes();
-            if (n < 0) {
-                eof = true;
-//                if ((cb.position() == 0) && (!byteBuffer.hasRemaining()))
-//                    break;
-                decoder.reset();
-            }
-            continue;
-        }
-        if (cr.isOverflow()) {
-//            assert cb.position() > 0;
-            break;
-        }
-        cr.throwException();
-        }
-
-//        if (eof) {
-//        // ## Need to flush decoder
-//        decoder.reset();
-//        }
-
-        if (cb.position() == 0) {
-            if (eof)
-                return -1;
-            assert false;
-        }
-        return cb.position();
-    }
-
-    private boolean inReady() {
-    	        try {
-    	        return ((input != null) && (input.available() > 0));     	        } catch (IOException x) {
-    	        return false;
-    	        }
-    	    }
-*/    
-//    private int read0() throws IOException {
-//             // Return the leftover char, if there is one
-//            if (haveLeftoverChar) {
-//                haveLeftoverChar = false;
-//                return leftoverChar;
-//            }
-//
-//            // Convert more bytes
-//            char cb[] = new char[2];
-//            int n = read(cb, 0, 2);
-//            switch (n) {
-//            case -1:
-//                return -1;
-//            case 2:
-//                leftoverChar = cb[1];
-//                haveLeftoverChar = true;
-//                // FALL THROUGH
-//            case 1:
-//                return cb[0];
-//            default:
-//                assert false : n;
-//                return -1;
-//            }
-//        
-//    }
-	/**
-	 * Set this file channel to a position prior to <code>pos</code>, so that the next byte that is read
-	 * is at the position <code>pos</code> of the file.
-	 * @param pos
-	 * @return
-	 * @throws IOException
-	 */
-	public boolean getToPosition(long pos)throws IOException{
-		System.out.println("get to pos "+pos);
-		filePos = pos;
-		fileChannel.position(pos);
-//		nextByte = input.read();
-//		return nextByte >= 0;
-		// reset buffer
-		byteBuffer.limit(byteBuffer.capacity());
-		// set position  to limit, so that compact() in readBytes() set position to 0
-		// without copying any bytes from the buffer
-		byteBuffer.position(byteBuffer.limit());
-		hasNext = readBytes()>=0;
-		return hasNext;
-	}
-/*	
-	public int nextNonspaceByte()throws IOException{
-		while(hasNext()){
-			byte ret = getNextByte();
-			if(!Character.isWhitespace(ret)){
-				return ret;
+		int limit = byteBuffer.limit();
+		for(int i = start + 1; i < limit; i++){
+			if(arr[i] == '"' && arr[i-1] != '\\'){
+				return i;
 			}
 		}
 		return -1;
 	}
-*/	
-	/**
-	 * Read next char from the file assuming that the encoding is UTF-8
-	 * @return
-	 */
-//	char getNextChar(){
-//		InputStreamReader
-//	}
 	
-	
+
 }
 
