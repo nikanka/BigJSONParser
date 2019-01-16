@@ -21,8 +21,19 @@ public class JSONNode {
 	private String name;
 	private String nodeString;
 	private long startPos;
+	private long endPos;
 	private boolean isFullyLoaded = true;
 	
+	/**
+	 * In case of String node, value contains String without quotes. 
+	 * File position for a node is a byte position of an opening quote 
+	 * (in case of String node) or opening bracket (in case of array or object nodes).
+	 * End position is specified only for String nodes and contains a byte 
+	 * position of a closing quote.
+	 * @param type
+	 * @param name
+	 * @param value
+	 */
 	protected JSONNode(int type, String name, String value){
 		this.type = type;
 		this.name = name;
@@ -52,16 +63,24 @@ public class JSONNode {
 	}
 
 		
-	public long getFilePosition(){
+	public long getStartFilePosition(){
 		return startPos;
+	}
+	
+	public long getEndFilePosition(){
+		return endPos;
 	}
 	
 	public String getNodeString(){
 		return nodeString;
 	}
 	
-	protected void setFilePosition(long pos){
+	protected void setStartFilePosition(long pos){
 		this.startPos = pos;
+	}
+	
+	protected void setEndFilePosition(long pos){
+		this.endPos = pos;
 	}
 	
 	public boolean isFullyLoaded(){

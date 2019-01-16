@@ -59,7 +59,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener 
 		if (parent.isFullyLoaded()) {
 			return;
 		}
-		List<JSONNode> children = backend.loadChildren(parent.getJSONNode().getFilePosition());
+		List<JSONNode> children = backend.loadChildren(parent.getJSONNode().getStartFilePosition());
 		for (JSONNode child : children) {
 			treeModel.insertNodeInto(new JSONTreeNode(child), parent, parent.getChildCount());
 		}

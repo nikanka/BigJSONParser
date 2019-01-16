@@ -20,70 +20,25 @@ public class UTF8FileReader {
 	private int currentMode = MODE_READING_ASCII_CHARS;
 	boolean DEBUG = true;
 	
-	protected long filePos = 0;
+	private long filePos = 0;
 	private FileInputStream input;
-	protected FileChannel fileChannel;
-	protected ByteBuffer byteBuffer;
-	protected CharBuffer charBuffer;
-	protected boolean hasNext = true;
+	private FileChannel fileChannel;
+	private ByteBuffer byteBuffer;
+	private CharBuffer charBuffer;
+	private boolean hasNext = true;
 	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
 	
-	public static void main(String[] args)throws IOException {
-		String testFile = "SmallTest2.json";
-		UTF8FileReader reader = new UTF8FileReader(testFile);
-//		testRead(reader);
-//		int n=0;
-//		while(reader.hasNext()){
-//			reader.getNextByte();
-//			n++;
-//		}
-//		System.out.println("There are total "+n+" bytes in file "+testFile);
-		testReadOnlyStrings(reader);
-//		System.out.println(reader.readUTF8String(3527, 3527+23));
-		
-//		StringBuilder sb = new StringBuilder();
-//		long firstOpen = -1;
-//		long firstClose = -1;
-//		while(reader.hasNext()){
-//			byte b = reader.getNextByte();
-//			if(b=='['){
-//				firstOpen = reader.filePos;	
-//			} else if(b==']'){
-//				firstClose = reader.filePos;
-//			}
-//		}
-//		System.out.println("First '[' pos = "+firstOpen);
-//		System.out.println("First ']' pos = "+firstClose);
-//		reader.getToPosition(firstOpen);
-//		while(reader.hasNext() && reader.filePos < firstClose){
-//			sb.append((char)reader.getNextByte());
-//		}
-//		System.out.print(sb.toString());
-	}
-	public static void testReadOnlyStrings(UTF8FileReader reader)throws IOException{
-//		UTF8FileReader reader = new UTF8FileReader(testFile);
-//		scanForClosingQuote(curByte)
-//		long openPos = -1;
-//		long closePos = -1;
+	public static void main(String[] args) throws IOException{
+		UTF8FileReader reader = new UTF8FileReader("testFiles/UTF8FileReaderPositionTest.txt");
 		while(reader.hasNext()){
-			byte b = reader.getNextByte();
-			System.out.println("next byte : '"+(char)b+"'");
-			if(b == '"'){
-//				openPos = reader.getFilePosition();
-//				closePos = reader.scanForClosingQuote(b);
-				System.out.println("file pos = "+reader.filePos+", buff pos = "+reader.byteBuffer.position());
-				String str = reader.readString();
-				b = reader.getNextByte();
-				assert b=='"': (char)b;
-				System.out.println(reader.byteBuffer+" (filePos = "+reader.filePos+")");
-				System.out.println(str);
-			}
+			char ch = reader.getNextChar();
+			long pos = reader.getFilePosition();
+			System.out.println(pos + ": "+ ch);
 		}
 	}
-
 	
 	public UTF8FileReader(String fileName) throws IOException {
 		input = new FileInputStream(fileName);
@@ -101,7 +56,7 @@ public class UTF8FileReader {
 	}
 
 	/**
-	 * Return current file position in bytes.
+	 * Return file position in bytes that is going to be read next.
 	 * @return
 	 */
 	public long getFilePosition(){
@@ -184,7 +139,7 @@ public class UTF8FileReader {
 		byte ret = byteBuffer.get();
 		filePos++;
 		if(byteBuffer.position() == byteBuffer.limit()){
-			System.out.println("GetNextByte buffer reload");
+			if(DEBUG) System.out.println("GetNextByte buffer reload");
 			readBytes();
 		}
 		return ret;
@@ -245,40 +200,43 @@ public class UTF8FileReader {
 
 
 	/**
-	 * Read and return a whole String starting at current file position and up to an 
+	 * Read and return a whole String starting at a given file position and up to an 
 	 * unmasked quote. It is assumed the the opening quote has already been read.
 	 * The file cursor is at the closing quote after this method.<br>
 	 * This method should be used when the entire String is to be read.
 	 * @return a String that was read (without quotes)
 	 * @throws IOException
 	 */
-	public String readString()throws IOException{
-		StringBuilder sb = new StringBuilder();
-		boolean lastCharIsBackSlash = false;
-		for(;;){
-			int n = fillCharBufferUpToQuote(lastCharIsBackSlash);
-			assert charBuffer.arrayOffset()==0: charBuffer.arrayOffset();
-			char[] charArr = charBuffer.array();
-			sb.append(charArr, 0, n);
-			System.out.println(
-					"Read " + n + " chars: CharBuffer [pos=" + charBuffer.position() + " lim=" + charBuffer.limit()
-							+ " cap=" + charBuffer.capacity() + "]\n" + byteBuffer + " (filePos = " + filePos + ")");
-			if(n < charBuffer.capacity()){
-				break;
-			}
-			lastCharIsBackSlash = charArr[n-1]=='\\';
-		}
-		if(DEBUG) System.out.println("End of readStringTest: "+byteBuffer+" (filePos = "+filePos+")");
-		return sb.toString();
-	}
+//	public String readStringAtPos(long filePos)throws IOException{
+//		StringBuilder sb = new StringBuilder();
+//		boolean lastCharIsBackSlash = false;
+//		for(;;){
+//			int n = fillCharBufferUpToQuote(lastCharIsBackSlash);
+//			assert charBuffer.arrayOffset()==0: charBuffer.arrayOffset();
+//			char[] charArr = charBuffer.array();
+//			sb.append(charArr, 0, n);
+//			if(DEBUG) System.out.println(
+//					"Read " + n + " chars: CharBuffer [pos=" + charBuffer.position() + " lim=" + charBuffer.limit()
+//							+ " cap=" + charBuffer.capacity() + "]\n" + byteBuffer + " (filePos = " + filePos + ")");
+//			if(n < charBuffer.capacity()){
+//				break;
+//			}
+//			lastCharIsBackSlash = charArr[n-1]=='\\';
+//		}
+//		currentMode = MODE_READING_CLOSING_QUOTE;
+//		if(DEBUG) System.out.println("End of readStringTest: "+byteBuffer+" (filePos = "+filePos+")");
+//		return sb.toString();
+//	}
 	
 	/**
 	 * Move the cursor to the end of a String, i.e. to the closing quote. 
 	 * It is assumed that before entering the method the cursor is within 
-	 * a String. 
+	 * a String.<br> 
+	 * At the end of this method the closing quote was just read and the mode is 
+	 * set to reading ASCII.
 	 * @throws IOException
 	 */
-	public void skipTheString() throws IOException{
+	public long skipTheString() throws IOException{
 		currentMode = MODE_READING_ASCII_CHARS;
 		byte prevByte = ' ';
 		while(true){
@@ -288,16 +246,18 @@ public class UTF8FileReader {
 			}
 			prevByte = b;
 		}
+		return filePos;
 	}
 
 
 	/**
 	 * Fill the char buffer with chars starting from current position and up
-	 * to an unmasked quote (or the end of the char buffer).
+	 * to an unmasked quote (or the end of the char buffer). The position of the 
+	 * buffer is set to 0 and the limit is set to the number of characters that were
+	 * read into the buffer.
 	 * 
 	 * @param prevCharWasBackSlash
-	 * @return the number of remaining elements of the char buffer (from 
-	 * the current position and up to its limit)
+	 * @return the number characters that were read into the buffer
 	 * @throws IOException
 	 */
 	private int fillCharBufferUpToQuote(boolean prevCharWasBackSlash) throws IOException{
@@ -314,7 +274,14 @@ public class UTF8FileReader {
 		boolean escaped = prevCharWasBackSlash;
 		for (;;) {
 			posBeforeDecoding = byteBuffer.position();
+			if(DEBUG)System.out.println("Scaning for closing quote starting from pos "
+					+ posBeforeDecoding + "...");
 			int quotePos = scanForClosingQuote(escaped);
+			if(quotePos >= 0){
+				System.out.println(" found quote at pos " + quotePos);
+			} else {
+				System.out.println(" no quote found.");
+			}
 			int byteOldLimit = byteBuffer.limit();
 			if(quotePos >= 0){
 				byteBuffer.limit(quotePos);

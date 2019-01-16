@@ -57,7 +57,7 @@ public class LazyByteStreamParser {
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 //		System.out.println("pos "+parser.reader.getFilePosition()+": '"+(char)parser.reader.getNextByte()+"'");
 		JSONNode root = parser.parseTopLevel();
-		for(JSONNode node: parser.loadChildrenAtPosition(root.getFilePosition())){
+		for(JSONNode node: parser.loadChildrenAtPosition(root.getStartFilePosition())){
 			System.out.println(node.getName());
 		}
 //		root.print(System.out);
@@ -257,17 +257,17 @@ public class LazyByteStreamParser {
 //	}
 //	
 	
-	private long moveToTheEndOfToken(byte openingSymbol, byte closingSymbol)throws IOException{
+	private long moveToTheEndOfToken(char openingSymbol, char closingSymbol)throws IOException{
 		int opened = 1;
 		while(reader.hasNext()){
-			byte b = reader.getNextByte();
-			if(b == '\"'){// String starts
+			char ch = reader.getNextChar();
+			if(ch == '\"'){// String starts
 				reader.skipTheString();
 				continue;
 			}
-			if(b == closingSymbol){
+			if(ch == closingSymbol){
 				opened--;
-			} else if(b == openingSymbol){
+			} else if(ch == openingSymbol){
 				opened++;
 			}
 			
@@ -291,7 +291,7 @@ public class LazyByteStreamParser {
 		if(DEBUG){
 			System.out.println("Entered parseNameValuePair");
 		}
-		String name = parseString(false);
+		String name = parseString(false).getString();
 		if(curChar != ':'){
 			throwUnexpectedSymbolException("Invalid separator between "
 					+ "name and value in an object");
@@ -319,17 +319,18 @@ public class LazyByteStreamParser {
 		if(curChar == '{'){
 			ret = new JSONNode(JSONNode.TYPE_OBJECT, name);
 			ret.setIsFullyLoaded(false);
-			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken((byte)'{', (byte)'}');
+			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
+			moveToTheEndOfToken('{', '}');
 		} else if(curChar == '['){
 			ret = new JSONNode(JSONNode.TYPE_ARRAY, name);
 			ret.setIsFullyLoaded(false);
-			ret.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken((byte)'[', (byte)']');
+			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
+			moveToTheEndOfToken('[', ']');
 		} else if(curChar == '\"'){
-			long strPos = reader.getFilePosition();
-			ret = new JSONNode(JSONNode.TYPE_STRING, name, parseString(true));
-			ret.setFilePosition(strPos-1);
+			StringWithCoords str = parseString(true);
+			ret = new JSONNode(JSONNode.TYPE_STRING, name, str.getString());
+			ret.setStartFilePosition(str.openingQuotePos);
+			ret.setEndFilePosition(str.closingQuotePos);
 		} else if(curChar == 't'){
 			ret = parseKeyword(name, KEYWORD_TRUE);
 		} else if(curChar == 'f'){
@@ -392,18 +393,22 @@ public class LazyByteStreamParser {
 	 * Read and parse string in "". The file is supposed to be in UTF-8 format.
 	 * In the beginning of the method the cursor should be at the first '"'
 	 * After this method the cursor should be at the char following the closing '"' if any.
-	 * Checks the validity of the string. If there is a not allowed symbol, throws IllegalArgumaentException.
+	 * 
+	 * <br><br>
+	 * ????(how?)Checks the validity of the string. If there is a not allowed symbol, throws IllegalArgumaentException.
 	 *  
 	 * @return Parsed string truncated so that its length <= <code>length</code>. If <code>length</code> < 0, 
 	 * returns the whole string 
 	 */
-	private String parseString(boolean lazy) throws IOException{
+	//TODO: does this method indeed check the validity of the string?
+	private StringWithCoords parseString(boolean lazy) throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseString");
 		}
 		if(curChar != '"'){
 			throwUnexpectedSymbolException("String does not start with '\"'");
 		}
+		long openingQuotePos = reader.getFilePosition() - 1;// since we've already read an opening quote
 		StringBuilder sb = new StringBuilder();
 		moveToNextChar();
 		while(true){
@@ -413,58 +418,23 @@ public class LazyByteStreamParser {
 				break;
 			}
 			if(lazy && sb.length() == stringDisplayLength){
+				// if we are here, we stopped reading but did not reach the closing quote 
+				// (due to lazy reading), so skip the rest of the string and read the closing quote
+				reader.skipTheString();
 				break;
 			}
 			moveToNextChar();
 		}
-		if(reader.getReadingMode() != UTF8FileReader.MODE_READING_ASCII_CHARS){
-			// in case we ended reading and did not reach the closing quote (due to lazy reading)
-			reader.skipTheString();
-		}
-			
-		
-//		while(true){
-//			if(Character.getType(curChar)==Character.CONTROL){
-//				throwUnexpectedSymbolException("Control symbol within a string");
-//			}
-//			if(curChar == '\\'){
-//				sb.append(curChar);
-//				moveToNextChar();
-//				if(curChar == 'u'){
-//					sb.append(curChar);
-//					for(int i = 0; i < 4; i++){
-//						moveToNextChar();
-//						if(!Character.isDigit(curChar) && 
-//								(Character.toLowerCase(curChar) > 'f' ||
-//										Character.toLowerCase(curChar) < 'a')){
-//							throwUnexpectedSymbolException("Non-hexadecimal "
-//									+ "digit after \\u");
-//						}
-//						sb.append(curChar);
-//					}
-//				} else if (curChar == '\"' || curChar == '\\' || curChar == '/' || curChar == 'b'
-//						|| curChar == 'f' || curChar == 'n' || curChar == 'r' || curChar == 't') {
-//					sb.append(curChar);
-//				} else{
-//					throwUnexpectedSymbolException("Illegal symbol after '\\' in a string");
-//				}
-//			} 
-//			if(curChar == '\"' && prevChar == '\\'){
-//				break;
-//			}
-//			sb.append(curChar);
+		long closingQuotePos = reader.getFilePosition() - 1;// since we've already read a closing quote
+//		if(reader.hasNext()){
 //			moveToNextChar();
-//		}	
-		if(reader.hasNext()){
-			moveToNextChar();
-		}
+//		}
 		if(DEBUG){
 			System.out.println("Done with parseString (lazy = " + lazy + "): " + reader.getFilePosition()
 					+ ", '" + curChar + "'");
 		}
 		
-
-		return sb.toString();
+		return new StringWithCoords(sb.toString(), openingQuotePos, closingQuotePos);
 	}
 
 	private void moveToNextChar() throws IOException{
@@ -487,6 +457,29 @@ public class LazyByteStreamParser {
 		if(DEBUG) System.out.println("Got non-space char: '"+curChar+"'");
 	}
 	
+	private class StringWithCoords{
+		private String string;
+		private long openingQuotePos;
+		private long closingQuotePos;
+		
+		public StringWithCoords(String string, long openingQuotePos, long closingQuotePos) {
+			this.string = string;
+			this.openingQuotePos = openingQuotePos;
+			this.closingQuotePos = closingQuotePos;
+		}
+		
+		public String getString() {
+			return string;
+		}
+
+		public long getOpeningQuotePos() {
+			return openingQuotePos;
+		}
+
+		public long getClosingQuotePos() {
+			return closingQuotePos;
+		}
+	}
 //	private static class Node implements TreeNode{
 //		static final int TYPE_OBJECT = 1;
 //		static final int TYPE_ARRAY = 2;

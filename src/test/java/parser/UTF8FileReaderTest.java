@@ -2,7 +2,6 @@ package test.java.parser;
 
 import static org.junit.Assert.*;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -22,6 +21,8 @@ public class UTF8FileReaderTest {
 //	public static void main(String[] args)throws IOException {
 //		new UTF8FileReaderTest().shouldReadStringStartingAtBufferSize();
 //	}
+	
+	
 	
 	@Test
 	public  void shouldReadStringWithEscapedQuote()throws IOException {
@@ -112,7 +113,7 @@ public class UTF8FileReaderTest {
 		String fileName = "UTF8FileReaderTest4.txt";
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
 				Charset.forName("UTF-8").newEncoder());
-		String str = "Строчка\\\"\nЕще одна строчка";
+		String str = "Строчка\\\"\nЕще одна �?трочка";
 		System.out.println(str);
 		writer.write("\"");
 		writer.write(str);
@@ -122,20 +123,62 @@ public class UTF8FileReaderTest {
 		assertEquals(1, result.size());
 		assertEquals(str, result.get(0));
 	}
-
-	public List<String> readAllStringsFromFile(String fileName)throws IOException{
+	
+	private List<String> readAllStringsFromFile(String fileName)throws IOException{
 		UTF8FileReader reader = new UTF8FileReader(fileName);
 		List<String> result = new ArrayList<String>();
+		boolean readingString = false;
+		char prevChar = Character.MIN_VALUE;
+		StringBuilder sb = new StringBuilder();
 		while(reader.hasNext()){
-			byte b = reader.getNextByte();
-			if(b == '"' ){
-				String str = reader.readString();
-				result.add(str);
-				System.out.println(str);
-				b = reader.getNextByte();
-				assert b=='"': (char)b;
+			char ch = reader.getNextChar();
+			if(ch == '"'){
+				if(!readingString || readingString && prevChar != '\\'){
+					readingString = !readingString;
+					
+					if(!readingString){
+						result.add(sb.toString());
+						sb.setLength(0);
+					}
+					continue;
+				}
 			}
+			if(readingString){
+				sb.append(ch);
+			}
+			prevChar = ch;
 		}
 		return result;
 	}
+	
+	
+	@Test
+	public void shouldReadAllStrings()throws IOException{
+		String fileName = "UTF8CharFileReaderTest1.txt";
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
+				Charset.forName("UTF-8").newEncoder());
+		// Empty string
+		String str1 = "f";
+		// long string
+		char[] arr = new char[UTF8FileReader.bufferSize + 100];
+		Arrays.fill(arr, 's');
+		String str2 = new String(arr);
+		// string in Russian
+		String str3 = "Строчка\\\"\nЕще одна �?трочка";
+				
+		writer.write("String #1 = \""+str1+"\"; ");
+		writer.write("String #2 = \""+str2+"\"; ");
+		writer.write("String #3 = \""+str3+"\"; ");
+		writer.close();
+		List<String> result = readAllStringsFromFile(fileName);
+		assertEquals(3, result.size());
+		assertEquals(str1, result.get(0));
+		assertEquals(str2, result.get(1));
+		assertEquals(str3, result.get(2));
+		
+	}
+
+
+	
+
 }
