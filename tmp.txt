@@ -1,0 +1,179 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< main.java:big-json-viewer >----------------------
+[INFO] Building big-json-viewer 1
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ big-json-viewer ---
+[WARNING] Using platform encoding (Cp1252 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory C:\Users\nikanka\workspace\BigJSONViewer\src\main\resources
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.1:compile (default-compile) @ big-json-viewer ---
+[INFO] Changes detected - recompiling the module!
+[WARNING] File encoding has not been set, using platform encoding Cp1252, i.e. build is platform dependent!
+[INFO] Compiling 7 source files to C:\Users\nikanka\workspace\BigJSONViewer\target\classes
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/LazyByteStreamParserTest.java:[3,24] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/LazyByteStreamParserTest.java:[13,17] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[3,24] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[14,17] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[27,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[39,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[55,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[71,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[90,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[110,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[155,10] cannot find symbol
+  symbol:   class Test
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[35,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[36,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[52,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[53,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[68,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[69,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[87,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[88,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[106,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[107,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[123,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[124,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[174,17] cannot find symbol
+  symbol:   method assertEquals(int,int)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[175,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[176,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[177,17] cannot find symbol
+  symbol:   method assertEquals(java.lang.String,java.lang.String)
+  location: class test.java.parser.UTF8FileReaderTest
+[INFO] 27 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.636 s
+[INFO] Finished at: 2019-01-15T23:29:40-08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.1:compile (default-compile) on project big-json-viewer: Compilation failure: Compilation failure: 
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/LazyByteStreamParserTest.java:[3,24] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/LazyByteStreamParserTest.java:[13,17] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[3,24] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[14,17] package org.junit does not exist
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[27,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[39,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[55,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[71,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[90,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[110,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[155,10] cannot find symbol
+[ERROR]   symbol:   class Test
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[35,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[36,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[52,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[53,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[68,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[69,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[87,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[88,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[106,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[107,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[123,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[124,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[174,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(int,int)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[175,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[176,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] /C:/Users/nikanka/workspace/BigJSONViewer/src/test/java/parser/UTF8FileReaderTest.java:[177,17] cannot find symbol
+[ERROR]   symbol:   method assertEquals(java.lang.String,java.lang.String)
+[ERROR]   location: class test.java.parser.UTF8FileReaderTest
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

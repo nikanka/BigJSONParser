@@ -1,4 +1,4 @@
-package test.java.parser;
+package com.bigjsonviewer.parser;
 
 import static org.junit.Assert.*;
 

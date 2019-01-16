@@ -1,4 +1,4 @@
-package test.java.parser;
+package com.bigjsonviewer.parser;
 
 import static org.junit.Assert.*;
 
@@ -13,7 +13,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import main.java.parser.UTF8FileReader;
+import com.bigjsonviewer.parser.UTF8FileReader;
 
 public class UTF8FileReaderTest {
 	
@@ -113,7 +113,7 @@ public class UTF8FileReaderTest {
 		String fileName = "UTF8FileReaderTest4.txt";
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
 				Charset.forName("UTF-8").newEncoder());
-		String str = "Строчка\\\"\nЕще одна �?трочка";
+		String str = "Строчка\\\"\nЕще одна �?трочка";
 		System.out.println(str);
 		writer.write("\"");
 		writer.write(str);
@@ -164,7 +164,7 @@ public class UTF8FileReaderTest {
 		Arrays.fill(arr, 's');
 		String str2 = new String(arr);
 		// string in Russian
-		String str3 = "Строчка\\\"\nЕще одна �?трочка";
+		String str3 = "Строчка\\\"\nЕще одна �?трочка";
 				
 		writer.write("String #1 = \""+str1+"\"; ");
 		writer.write("String #2 = \""+str2+"\"; ");

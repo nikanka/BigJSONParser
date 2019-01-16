@@ -1,4 +1,4 @@
-package main.java.parser;
+package com.bigjsonviewer.parser;
 
 import java.io.File;
 import java.io.IOException;

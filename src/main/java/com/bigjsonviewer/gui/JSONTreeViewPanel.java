@@ -1,4 +1,4 @@
-package main.java.gui;
+package com.bigjsonviewer.gui;
 
 import java.awt.Dimension;
 import java.io.IOException;
@@ -15,8 +15,8 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreeNode;
 
-import main.java.parser.JSONInterface;
-import main.java.parser.JSONNode;
+import com.bigjsonviewer.parser.JSONInterface;
+import com.bigjsonviewer.parser.JSONNode;
 
 /**
  * SWING panel for rendering a dynamically loaded JSON tree. Uses entities of

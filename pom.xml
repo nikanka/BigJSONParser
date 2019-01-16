@@ -3,12 +3,7 @@
   <groupId>main.java</groupId>
   <artifactId>big-json-viewer</artifactId>
   <version>1</version>
-  
-  <build>
-    <sourceDirectory>src</sourceDirectory>
-    <testSourceDirectory>test</testSourceDirectory>
-  </build> 
-  
+    
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
