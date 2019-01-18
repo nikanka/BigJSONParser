@@ -18,7 +18,7 @@ public class UTF8FileReader {
 	public static final int MODE_READING_CLOSING_QUOTE = 2;
 	
 	private int currentMode = MODE_READING_ASCII_CHARS;
-	boolean DEBUG = true;
+	boolean DEBUG = false;
 	
 	private long filePos = 0;
 	private FileInputStream input;
@@ -57,6 +57,8 @@ public class UTF8FileReader {
 
 	/**
 	 * Return file position in bytes that is going to be read next.
+	 * <br><br>
+	 * So, the position of curChar that has been just read is file position - 1.
 	 * @return
 	 */
 	public long getFilePosition(){
@@ -71,7 +73,7 @@ public class UTF8FileReader {
 	 * @throws IOException
 	 */
 	boolean getToPosition(long pos)throws IOException{
-		System.out.println("get to pos "+pos);
+		if(DEBUG) System.out.println("get to pos "+pos);
 		filePos = pos;
 		fileChannel.position(pos);
 //		nextByte = input.read();
@@ -234,6 +236,7 @@ public class UTF8FileReader {
 	 * a String.<br> 
 	 * At the end of this method the closing quote was just read and the mode is 
 	 * set to reading ASCII.
+	 * @return current file position (i.e. position immediate after the closing quote)
 	 * @throws IOException
 	 */
 	public long skipTheString() throws IOException{
@@ -246,6 +249,7 @@ public class UTF8FileReader {
 			}
 			prevByte = b;
 		}
+		// TODO: handle unexpected end of file - before the closing quote is reached
 		return filePos;
 	}
 
@@ -255,6 +259,10 @@ public class UTF8FileReader {
 	 * to an unmasked quote (or the end of the char buffer). The position of the 
 	 * buffer is set to 0 and the limit is set to the number of characters that were
 	 * read into the buffer.
+	 * <br><br>
+	 * The file position is set to number of bytes read so far, which means it is set
+	 * to the position of the closing quote of the string that is being read or to some 
+	 * position within a string if the quote has not been reached and the char buffer is full.  
 	 * 
 	 * @param prevCharWasBackSlash
 	 * @return the number characters that were read into the buffer
@@ -277,10 +285,12 @@ public class UTF8FileReader {
 			if(DEBUG)System.out.println("Scaning for closing quote starting from pos "
 					+ posBeforeDecoding + "...");
 			int quotePos = scanForClosingQuote(escaped);
-			if(quotePos >= 0){
-				System.out.println(" found quote at pos " + quotePos);
-			} else {
-				System.out.println(" no quote found.");
+			if(DEBUG){
+				if(quotePos >= 0){
+					System.out.println(" found quote at byte buffer pos " + quotePos);
+				} else {
+					System.out.println(" no quote found.");
+				}
 			}
 			int byteOldLimit = byteBuffer.limit();
 			if(quotePos >= 0){

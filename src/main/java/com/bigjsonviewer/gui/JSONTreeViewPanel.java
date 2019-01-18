@@ -30,7 +30,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener 
 	JSONInterface backend;
 
 	public static void main(String[] args) throws IOException {
-		String fileName = "SmallTest2.json";
+		String fileName = "testFiles/SmallTest2.json";
 
 		JFrame frame = new JFrame("Tree View");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
