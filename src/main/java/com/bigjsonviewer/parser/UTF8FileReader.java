@@ -26,20 +26,12 @@ public class UTF8FileReader {
 	private ByteBuffer byteBuffer;
 	private CharBuffer charBuffer;
 	private boolean hasNext = true;
+	private boolean prevCharIsBackslash = false;
 	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
-	
-	public static void main(String[] args) throws IOException{
-		UTF8FileReader reader = new UTF8FileReader("testFiles/UTF8FileReaderPositionTest.txt");
-		while(reader.hasNext()){
-			char ch = reader.getNextChar();
-			long pos = reader.getFilePosition();
-			System.out.println(pos + ": "+ ch);
-		}
-	}
-	
+		
 	public UTF8FileReader(String fileName) throws IOException {
 		input = new FileInputStream(fileName);
 		fileChannel = input.getChannel();
@@ -169,34 +161,54 @@ public class UTF8FileReader {
 			if(ret == '\"'){
 				// checking for the backslash at the prev pos is not necessary as 
 				// it has an escape meaning only within Strings
-				if (DEBUG) System.out.println("GetNextChar  char buffer initial load");
-				int n = fillCharBufferUpToQuote(false);
-				if(n==0){
-					currentMode = MODE_READING_CLOSING_QUOTE;
-					if (DEBUG) System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+//				if (DEBUG) System.out.println("GetNextChar  char buffer initial load");
+//				int n = fillCharBufferUpToQuote(false);
+//				if(n==0){
+//					currentMode = MODE_READING_CLOSING_QUOTE;
+//					if (DEBUG) System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+//				}
+//				if(n > 0){
+//					currentMode = MODE_READING_UTF8_CHARS;
+//					if (DEBUG) System.out.println("CHANGE MODE TO READING UTF8: "+
+//							new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+//				}
+				currentMode = MODE_READING_UTF8_CHARS;
+				if (DEBUG){
+					System.out.println("CHANGE MODE TO READING UTF8: "
+							+ "opening quote at pos " + (getFilePosition() - 1));
 				}
-				if(n > 0){
-					currentMode = MODE_READING_UTF8_CHARS;
-					if (DEBUG) System.out.println("CHANGE MODE TO READING UTF8: "+
-							new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+ 			}
+		} else if(currentMode == MODE_READING_UTF8_CHARS){
+			// char buffer is empty
+			if(charBuffer.position() == charBuffer.limit()){
+				int n = fillCharBufferUpToQuote(prevCharIsBackslash);
+				if (DEBUG){
+					System.out.println("GetNextChar char buffer load: " + new String(
+							Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+				}
+				if(n == 0){// end of string, i.e. it's an empty string
+					currentMode = MODE_READING_CLOSING_QUOTE;
+					prevCharIsBackslash = false;
+					if(DEBUG)System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+					return getNextChar();
 				}
 			}
-		} else if(currentMode == MODE_READING_UTF8_CHARS){
 			// TODO: handle a situation when there are bytes left to read but they do not 
 			// give any meaningful character (in case of multi-byte chars)
 			ret = charBuffer.get();
-			if(charBuffer.position() == charBuffer.limit()){
-				if (DEBUG) System.out.println("GetNextChar  char buffer reload");
-				int n = fillCharBufferUpToQuote(ret == '\\');
-				if(n == 0){// end of string
-					currentMode = MODE_READING_CLOSING_QUOTE;
-					if(DEBUG)System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
-				}
-			}
+			prevCharIsBackslash = ret == '\\';
+//			if(charBuffer.position() == charBuffer.limit()){
+//				if (DEBUG) System.out.println("GetNextChar  char buffer reload");
+//				int n = fillCharBufferUpToQuote(ret == '\\');
+//				if(n == 0){// end of string
+//					currentMode = MODE_READING_CLOSING_QUOTE;
+//					if(DEBUG)System.out.println("CHANGE MODE TO READING CLOSING QUOTE");
+//				}
+//			}
 		} else {
 			throw new RuntimeException("Invalid reading mode: " + currentMode);
 		}
-		
+		if(DEBUG) System.out.println("Char just read: " + ret);
 		return ret;
 	}	
 

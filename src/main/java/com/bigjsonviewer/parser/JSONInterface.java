@@ -13,7 +13,7 @@ public class JSONInterface {
 	public JSONInterface(String fileName){
 		this.fileName = fileName;
 		try{
-			parser = new LazyByteStreamParser(fileName);
+			parser = new LazyByteStreamParser(fileName, 20);
 			root = parser.parseTopLevel();//TODO: should check format at this point
 		}catch(IOException e){
 			//TODO
