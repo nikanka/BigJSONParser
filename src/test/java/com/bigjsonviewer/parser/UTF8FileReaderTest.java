@@ -2,6 +2,7 @@ package com.bigjsonviewer.parser;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -72,7 +73,7 @@ public class UTF8FileReaderTest {
 	
 	@Test
 	public void checkFilePos() throws IOException{
-		UTF8FileReader reader = new UTF8FileReader("testFiles/UTF8FileReaderPositionTest.txt");
+		UTF8FileReader reader = new UTF8FileReader(testFileDir + "UTF8FileReaderPositionTest.txt");
 		while(reader.hasNext()){
 			long pos = reader.getFilePosition();
 			int ch = Integer.parseInt(""+reader.getNextChar());
@@ -82,7 +83,7 @@ public class UTF8FileReaderTest {
 
 	@Test 
 	public void shouldFindClosingQuotesAndReadStrings() throws IOException{
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest_RandomStrings.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest_RandomStrings.txt");
 		StringWithCoords[] strings = createFileWithStrings(fileName, 100, 100);
 //		System.out.println(Arrays.toString(strings));
 		UTF8FileReader reader = new UTF8FileReader(fileName);
@@ -97,7 +98,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public  void shouldReadStringWithEscapedQuote()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest1.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest1.txt");
 		FileWriter fw = new FileWriter(fileName);
 		fw.write("\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"bbbbbbbbb\"");
 		fw.close();
@@ -109,7 +110,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public void shouldReadStringWithQuoteAtByteBufferEdge()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest2.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest2.txt");
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
 		Arrays.fill(prefix, 's');
@@ -125,7 +126,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public void shouldReadStringWithQuoteAtCharBufferEdge()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest2.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest2.txt");
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize];
 		Arrays.fill(prefix, 's');
@@ -141,7 +142,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtByteBufferEdge()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest2.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest2.txt");
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-2];
 		
@@ -160,7 +161,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtCharBufferEdge()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest3.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest3.txt");
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
 		
@@ -180,7 +181,7 @@ public class UTF8FileReaderTest {
 	@Test
 	public void shouldReadStringInRussian()throws IOException {
 		// prepare file
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest4.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest4.txt");
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
 				Charset.forName("UTF-8").newEncoder());
 		String str = "Строчка\\\"\nЕще одна строчка";
@@ -227,7 +228,7 @@ public class UTF8FileReaderTest {
 	
 	@Test
 	public void shouldReadAllStrings()throws IOException{
-		String fileName = generatedTestFileDir + "UTF8FileReaderTest5.txt";
+		String fileName = getGeneratedFilePath("UTF8FileReaderTest5.txt");
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
 				Charset.forName("UTF-8").newEncoder());
 		// Empty string
@@ -252,6 +253,12 @@ public class UTF8FileReaderTest {
 	}
 
 
+	private static String getGeneratedFilePath(String fileName){
+		File dir = new File(generatedTestFileDir);
+		dir.mkdir();
+		File file = new File(dir, fileName);
+		return file.getPath();
+	}
 	
 
 }
