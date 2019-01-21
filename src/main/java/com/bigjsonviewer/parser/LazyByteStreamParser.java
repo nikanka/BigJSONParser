@@ -35,11 +35,14 @@ public class LazyByteStreamParser {
 	private UTF8FileReader reader;
 	private char curChar;
 	
-	private Pattern patternNumber = Pattern.compile("^-?(0|([1-9][0-9]*))(.[0-9]+)?([eE][+-]?[0-9]+)?$");
+	private Pattern patternNumber = Pattern.compile("^-?(0|([1-9][0-9]*))(.[0-9]*)?([eE][+-]?[0-9]+)?$");
 
 	protected LazyByteStreamParser(String fileName, int stringDisplayLimit) throws IOException{
 		reader = new UTF8FileReader(fileName);
 		this.stringDisplayLength = stringDisplayLimit;
+	}
+	char getCurChar(){
+		return curChar;
 	}
 	protected JSONNode parseTopLevel() throws IOException{
 		if(DEBUG){
@@ -415,11 +418,14 @@ public class LazyByteStreamParser {
 		return new StringWithCoords(sb.toString(), openingQuotePos, closingQuotePos);
 	}
 
-	private void moveToNextChar() throws IOException{
+	void moveToNextChar() throws IOException{
 		curChar = reader.getNextChar();
 //		if(DEBUG){
 //			System.out.println("Char = '"+curChar+"'");
 //		}
+	}
+	boolean hasNext(){
+		return reader.hasNext();
 	}
 	/**
 	 * Moves the cursor to the next non-space char. Does not check if there are characters 

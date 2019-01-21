@@ -252,14 +252,24 @@ public class UTF8FileReader {
 	 * @throws IOException
 	 */
 	public long skipTheString() throws IOException{
+		// if we read all the chars from the char buffer
+		// we just check the class variable to know if the last read char is a backslash
+		boolean prevIsBackslash = prevCharIsBackslash;
+		// if the char buffer was not read up to its limit 
+		// read the last char before the limit to check if its a backslash
+		if(charBuffer.position() < charBuffer.limit()){
+			charBuffer.position(charBuffer.limit()-1);
+			prevIsBackslash = charBuffer.get() == '\\';
+			// now buffer is read up to the limit
+		}
+		// search for the first unmasked quote in the byte buffer 
 		currentMode = MODE_READING_ASCII_CHARS;
-		byte prevByte = ' ';
 		while(true){
 			byte b = getNextByte();
-			if(b == '\"' && prevByte != '\\'){
+			if(b == '\"' && !prevIsBackslash){
 				break;
 			}
-			prevByte = b;
+			prevIsBackslash = b == '\\';
 		}
 		// TODO: handle unexpected end of file - before the closing quote is reached
 		return filePos;
@@ -334,7 +344,7 @@ public class UTF8FileReader {
 				
 				int n = readBytes();
 				if (n < 0) {
-					eof = true;
+					eof = true;// TODO it seems that this eof value does not affect anything
 //					hasNext = false;
 //					 if ((charBuffer.position() == 0) && (!byteBuffer.hasRemaining()))
 //					 break;
