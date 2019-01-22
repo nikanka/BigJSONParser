@@ -1,4 +1,4 @@
-package com.bigjsonviewer.parser;
+package com.bigjson.parser;
 
 import static org.junit.Assert.*;
 
@@ -20,7 +20,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.Test;
 
-import com.bigjsonviewer.parser.LazyByteStreamParser.StringWithCoords;
+import com.bigjson.parser.JSONNode;
+import com.bigjson.parser.LazyByteStreamParser;
+import com.bigjson.parser.UTF8FileReader;
+import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
 
 
 public class LazyByteStreamParserTest {

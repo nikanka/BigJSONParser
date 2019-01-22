@@ -1,4 +1,4 @@
-package com.bigjsonviewer.parser;
+package com.bigjson.parser;
 
 import static org.junit.Assert.*;
 
@@ -11,8 +11,8 @@ import java.util.Random;
 
 import org.junit.Test;
 
-import com.bigjsonviewer.parser.UTF8FileReader;
-import com.bigjsonviewer.parser.LazyByteStreamParser.StringWithCoords;
+import com.bigjson.parser.UTF8FileReader;
+import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
 
 public class UTF8FileReaderTest {
 	

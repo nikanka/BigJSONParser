@@ -1,4 +1,4 @@
-package com.bigjsonviewer.parser;
+package com.bigjson.parser;
 
 
 /**
