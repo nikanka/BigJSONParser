@@ -20,7 +20,9 @@ public class JSONInterface {
 			throw new RuntimeException(e);
 		}
 	}
-	
+	public void destroy() throws IOException{
+		parser.destroy();
+	}
 	public JSONNode getRoot(){
 		return root;
 	}

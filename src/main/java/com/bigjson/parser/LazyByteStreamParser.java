@@ -41,6 +41,10 @@ public class LazyByteStreamParser {
 		reader = new UTF8FileReader(fileName);
 		this.stringDisplayLength = stringDisplayLimit;
 	}
+	
+	void destroy() throws IOException{
+		reader.closeFileInputStream();
+	}
 	char getCurChar(){
 		return curChar;
 	}
@@ -50,7 +54,7 @@ public class LazyByteStreamParser {
 		}
 		// TODO: check that the file cursor is at the beginning of the file?
 		moveToNextNonspaceChar();
-		JSONNode root = parseValue(null);	 
+		JSONNode root = parseValue("JSON");	 
 		if(DEBUG){
 			System.out.println("Done with parseTopLevel: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
@@ -308,6 +312,7 @@ public class LazyByteStreamParser {
 		} else if(curChar == '\"'){
 			StringWithCoords str = parseString(true);
 			ret = new JSONNode(JSONNode.TYPE_STRING, name, str.getString());
+			ret.setIsFullyLoaded(str.isFullyRead());
 			ret.setStartFilePosition(str.openingQuotePos);
 			ret.setEndFilePosition(str.closingQuotePos);
 		} else if(curChar == 't'){
@@ -461,6 +466,10 @@ public class LazyByteStreamParser {
 
 		public long getClosingQuotePos() {
 			return closingQuotePos;
+		}
+		
+		public boolean isFullyRead(){
+			return string.length() == closingQuotePos - openingQuotePos - 1;
 		}
 		
 		public String toString() {

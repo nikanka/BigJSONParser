@@ -42,6 +42,9 @@ public class UTF8FileReader {
 		readBytes();
 	}
 	
+	void closeFileInputStream() throws IOException{
+		input.close();
+	}
 	
 	public int getReadingMode(){
 		return currentMode;
