@@ -42,7 +42,7 @@ public class LazyByteStreamParserTest {
 	private void parseAndCompare(String fileName, int stringLenngth) throws IOException{
 		// this parser vs...
 		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, stringLenngth);
-		JSONNode top = parser.parseTopLevel();
+		JSONNode top = parser.parseTopLevel(null);
 		
 		// org.json parser
 		byte[] bytes = Files.readAllBytes(Paths.get(fileName));
