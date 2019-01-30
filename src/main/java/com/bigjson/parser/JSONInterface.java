@@ -11,16 +11,21 @@ public class JSONInterface {
 	private String fileName;
 	
 	public JSONInterface(String fileName){
+		this(fileName, null);
+	}
+	public JSONInterface(String fileName, String topLevelName){
 		this.fileName = fileName;
 		try{
 			parser = new LazyByteStreamParser(fileName, 20);
-			root = parser.parseTopLevel();//TODO: should check format at this point
+			root = parser.parseTopLevel(topLevelName);//TODO: should check format at this point
 		}catch(IOException e){
 			//TODO
 			throw new RuntimeException(e);
 		}
 	}
-	
+	public void destroy() throws IOException{
+		parser.destroy();
+	}
 	public JSONNode getRoot(){
 		return root;
 	}
