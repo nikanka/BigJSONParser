@@ -38,7 +38,6 @@ public class JSONNode {
 		this.type = type;
 		this.name = name;
 		this.setValue(value);
-		this.nodeString = createNodeString();
 	}
 	protected JSONNode(int type, String name){
 		this(type, name, null);
@@ -103,6 +102,7 @@ public class JSONNode {
 	}
 	protected void setValue(String value) {
 		this.value = value;
+		this.nodeString = createNodeString();
 	}
 	 
 //	/////// TreeNode methods ///////////////////////
