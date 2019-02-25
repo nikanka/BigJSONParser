@@ -1,6 +1,5 @@
 package com.bigjson.parser;
 
-
 /**
  * Represent a node of a JSON tree that was read from a file. 
  * Besides the usual node information (type, name and value) contain 

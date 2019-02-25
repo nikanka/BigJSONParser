@@ -77,11 +77,24 @@ public class LazyByteStreamParser {
 			throw new IOException("Trying to set the cursor to a position that is bigger "
 					+ "than the file's size: " + filePos);
 		}
-		moveToNextChar();
+		try{
+			moveToNextChar();
+		} catch(IOException e){
+			throw new IllegalArgumentException(
+					e.getMessage() + " while looking for an opening bracket for an object or array");
+		}
 		if(curChar == '['){
-			return parseArray();
+			try {
+				return parseArray();
+			}catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage() + " while reading an array");
+			}		
 		} else if(curChar == '{'){
-			return parseObject();
+			try{
+				return parseObject();
+			}catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage() + " while reading an object");
+			}
 		} 
 		throwUnexpectedSymbolException("Lazy load children: was expecting '[' or '{'");
 		return null;
@@ -91,7 +104,11 @@ public class LazyByteStreamParser {
 			throw new IOException("Trying to set the cursor to a position that is bigger "
 					+ "than the file's size: " + openingQuotePos);
 		}
-		moveToNextChar(); // read opening quote
+		try{
+			moveToNextChar(); // read opening quote
+		} catch(IOException e){
+			throw new IllegalArgumentException(e.getMessage() + " while reading an opening quote for a String");
+		}
 		StringWithCoords str = parseString(false);
 		// just a sanity check
 		if(str.getOpeningQuotePos() != openingQuotePos ||
@@ -126,7 +143,8 @@ public class LazyByteStreamParser {
 			System.out.println("Entered parseArray");
 		}
 		if(curChar != '['){
-			throwUnexpectedSymbolException("Array should start with '['");
+			throwUnexpectedSymbolException("Array should start with '[' (pos " + reader.getFilePosition() + " of file "
+					+ reader.getFileName() + ")");
 		}
 //		JSONTreeNode arrayNode = new JSONTreeNode(JSONTreeNode.TYPE_ARRAY, name, level);
 //		arrayNode.setIsFullyLoaded(!lazy);
@@ -290,11 +308,23 @@ public class LazyByteStreamParser {
 		if(curChar == '{'){
 			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			ret.setEndFilePosition(moveToTheEndOfToken('{', '}'));
+			try{
+				ret.setEndFilePosition(moveToTheEndOfToken('{', '}'));
+			} catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage()
+						+ " while searching for the closing bracket of an object node starting at position "
+						+ ret.getStartFilePosition());
+			}
 		} else if(curChar == '['){
 			ret = new JSONNonTreeNode(JSONNode.TYPE_ARRAY, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
-			ret.setEndFilePosition(moveToTheEndOfToken('[', ']'));
+			try{
+				ret.setEndFilePosition(moveToTheEndOfToken('[', ']'));
+			} catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage()
+						+ " while searching for the closing bracket of an array node starting at position "
+						+ ret.getStartFilePosition());
+			}
 		} else if(curChar == '\"'){
 			StringWithCoords str = parseString(true);
 			ret = new JSONNonTreeNode(JSONNode.TYPE_STRING, name, str.isFullyRead(), str.getString());
@@ -324,7 +354,11 @@ public class LazyByteStreamParser {
 		StringBuilder sb = new StringBuilder();
 		while(curChar != ',' && curChar != '}' && curChar != ']' && !Character.isWhitespace(curChar)){
 			sb.append((char)curChar);
-			moveToNextChar();
+			try{
+				moveToNextChar();
+			} catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage() + " while reading a number");
+			}
 		}
 		String number = sb.toString();
 		if(patternNumber.matcher(number).matches()){
@@ -345,7 +379,11 @@ public class LazyByteStreamParser {
 			if(curChar != keyword.charAt(i)){
 				throwUnexpectedSymbolException("Unexpected keyword: should be '"+keyword+"'");
 			}
-			moveToNextChar();
+			try{
+				moveToNextChar();
+			} catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage() + " while reading a keyword '" + keyword + "'");
+			}
 		}
 		if(DEBUG){
 			System.out.println("Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
@@ -371,7 +409,6 @@ public class LazyByteStreamParser {
 	 * @return Parsed string truncated so that its length <= <code>length</code>. If <code>length</code> < 0, 
 	 * returns the whole string 
 	 */
-	//TODO: does this method indeed check the validity of the string?
 	StringWithCoords parseString(boolean lazy) throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseString at pos " + reader.getFilePosition());
@@ -381,7 +418,11 @@ public class LazyByteStreamParser {
 		}
 		long openingQuotePos = reader.getFilePosition() - 1;// since we've already read an opening quote
 		StringBuilder sb = new StringBuilder();
-		moveToNextChar();
+		try{
+			moveToNextChar();
+		}catch(IOException e){
+			throw new IOException(e.getMessage() + " while reading the first char of a String");
+		}
 		while(true){
 			if(reader.getReadingMode() == UTF8FileReader.MODE_READING_ASCII_CHARS){
 //				moveToNextChar();// move to the symbol immediate after closing quote
