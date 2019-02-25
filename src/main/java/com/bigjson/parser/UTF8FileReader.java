@@ -61,7 +61,7 @@ public class UTF8FileReader {
 	}
 	
 	/**
-	 * Set this file channel to a position prior to <code>pos</code>, so that the next byte that is read
+	 * Set this file channel to a position <code>pos</code>, so that the next byte that is read
 	 * is at the position <code>pos</code> of the file.
 	 * @param pos
 	 * @return

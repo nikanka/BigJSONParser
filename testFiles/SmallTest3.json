@@ -1,0 +1,96 @@
+{
+  "metadata" : [
+    [
+      38,
+      "genome.6",
+      "KBaseGenomes.Genome-12.3",
+      "2017-02-10T19:05:36+0000",
+      1,
+      "rsutormin",
+      15754,
+      "rsutormin:1483647457421",
+      "3841a255039fa94d5000c6b7c727c5e8",
+      11548082,
+      {
+        "Domain" : "Bacteria",
+        "GC content" : "0.4805496717351098",
+        "Genetic code" : "11",
+        "Name" : "Shewanella sp ANA 3",
+        "Number features" : "4364",
+        "Size" : "4972204",
+        "Source" : "PROKKA annotation pipeline"
+      }
+    ]
+  ],
+  "provenance" : [
+    {
+      "copy_source_inaccessible" : null,
+      "created" : "2017-02-10T19:05:36+0000",
+      "creator" : "rsutormin",
+      "extracted_ids" : null,
+      "info" : [
+        38,
+        "genome.6",
+        "KBaseGenomes.Genome-12.3",
+        "2017-02-10T19:05:36+0000",
+        1,
+        "rsutormin",
+        15754,
+        "rsutormin:1483647457421",
+        "3841a255039fa94d5000c6b7c727c5e8",
+        11548082,
+        {
+          "Domain" : "Bacteria",
+          "GC content" : "0.4805496717351098",
+          "Genetic code" : "11",
+          "Name" : "Shewanella sp ANA 3",
+          "Number features" : "4364",
+          "Size" : "4972204",
+          "Source" : "PROKKA annotation pipeline"
+        }
+      ],
+      "provenance" : [
+        {
+          "custom" : { },
+          "description" : "KBase SDK method run via the KBase Execution Engine",
+          "epoch" : 1486753068000,
+          "external_data" : [ ],
+          "input_ws_objects" : [
+            "15754/36/1"
+          ],
+          "method" : "annotate_genes",
+          "method_params" : [
+            {
+              "input_genome_ref" : "rsutormin:1483647457421/genome.5",
+              "output_genome_name" : "genome.6",
+              "output_workspace" : "rsutormin:1483647457421"
+            }
+          ],
+          "resolved_ws_objects" : [
+            "15754/36/1"
+          ],
+          "service" : "RastKmerV2",
+          "service_ver" : "0.0.1",
+          "subactions" : [
+            {
+              "code_url" : "https://github.com/kbaseapps/RastKmerV2",
+              "commit" : "e4f44d6d69fbb43e45e343155e97faaa1cff4c5d",
+              "name" : "RastKmerV2",
+              "ver" : "0.0.1"
+            },
+            {
+              "code_url" : "https://github.com/kbase/genome_annotation_api",
+              "commit" : "e43d702a05c6add638b9d8bc89b9a509d903c34e",
+              "name" : "GenomeAnnotationAPI",
+              "ver" : "0.1.4-release"
+            }
+          ],
+          "time" : "2017-02-10T18:57:48+0000"
+        }
+      ],
+      "refs" : [
+        "15754/23/1"
+      ]
+    }
+  ]
+}

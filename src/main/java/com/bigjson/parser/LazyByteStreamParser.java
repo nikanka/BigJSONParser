@@ -48,7 +48,7 @@ public class LazyByteStreamParser {
 	}
 	char getCurChar(){
 		return curChar;
-	}
+	} 
 	/**
 	 * Parse the file and return the top level node of JSON tree.  
 	 * @param topLevelName specifies the name of the top-level node. If topLevelName is null 
@@ -73,7 +73,10 @@ public class LazyByteStreamParser {
 		return root;
 	}
 	protected List<JSONNode> loadChildrenAtPosition(long filePos) throws IOException{
-		reader.getToPosition(filePos);
+		if(!reader.getToPosition(filePos)){
+			throw new IOException("Trying to set the cursor to a position that is bigger "
+					+ "than the file's size: " + filePos);
+		}
 		moveToNextChar();
 		if(curChar == '['){
 			return parseArray();
@@ -82,7 +85,23 @@ public class LazyByteStreamParser {
 		} 
 		throwUnexpectedSymbolException("Lazy load children: was expecting '[' or '{'");
 		return null;
-		// TODO: full loading for Strings
+	}
+	protected String loadStringAtPosition(long openingQuotePos, long closingQuotePos) throws IOException{
+		if(!reader.getToPosition(openingQuotePos)){
+			throw new IOException("Trying to set the cursor to a position that is bigger "
+					+ "than the file's size: " + openingQuotePos);
+		}
+		moveToNextChar(); // read opening quote
+		StringWithCoords str = parseString(false);
+		// just a sanity check
+		if(str.getOpeningQuotePos() != openingQuotePos ||
+				str.getClosingQuotePos() != closingQuotePos){
+			throw new RuntimeException("The coordinates of the loaded String "
+					+ "are not equal to the original ones: "
+					+ "got [" + str.getOpeningQuotePos() + ", " + str.getClosingQuotePos() + "] "
+					+ "expected [" + openingQuotePos + ", " + closingQuotePos + "]");
+		}
+		return str.getString();
 	}
 
 	/**
@@ -168,17 +187,6 @@ public class LazyByteStreamParser {
 		if(curChar != '{'){
 			throwUnexpectedSymbolException("Object should start with '{'");
 		}
-////		JSONTreeNode objNode = new JSONTreeNode(JSONTreeNode.TYPE_OBJECT, name, level);
-//		objNode.setIsFullyLoaded(!lazy);
-//		if(lazy){
-//			objNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-//			moveToTheEndOfToken('{', '}');
-//			if(DEBUG){
-//				System.out.println(
-//						removeTab() + "Finished lazy loading of an object. File pos = " + reader.getFilePosition());
-//			}
-//			return objNode;
-//		}
 		List<JSONNode> nodeList = new ArrayList<JSONNode>();
 		moveToNextNonspaceChar();
 		while(curChar != '}'){
@@ -197,7 +205,6 @@ public class LazyByteStreamParser {
 						+ "name-value pairs");
 			}
 		}
-		System.out.println("End Of Object");
 		if(reader.hasNext()){
 			moveToNextChar();
 		}
@@ -210,44 +217,13 @@ public class LazyByteStreamParser {
 	 * Moves the file cursor to the symbol just after the current token (after closing symbol),
 	 * If there are no more symbols, leaves it at the closing symbol. Ignores opening and closing 
 	 * symbols within Strings. 
-	 * The cursor should be at (i.e. just before) the opening symbol in the beginning of the method.
+	 * The cursor should be at the symbol following the opening symbol in the beginning of the method 
+	 * (i.e. opening symbol has just been read and curChar==openingSymbol, filePos = filePos-of-openingSymbol + 1).
 	 * @param openingChar
 	 * @param closingChar
-	 * @return file position where the cursor is
+	 * @return file position of the closing symbol of the current token
 	 * @throws IOException
 	 */
-//	private long moveToTheEndOfToken(byte openingSymbol, byte closingSymbol)throws IOException{
-//		int opened = 1;
-//		boolean inString = false;
-//		byte prevByte = ' ';
-//		while(reader.hasNext()){
-//			byte b = reader.getNextByte();
-//			if(b == '\"'){
-//				if(!inString){
-//					inString = true;
-//				} else if(prevByte != '\\'){
-//					inString = false;
-//				}
-//			}
-//			if(!inString){
-//				if(b == closingSymbol){
-//					opened--;
-//				} else if(b == openingSymbol){
-//					opened++;
-//				}
-//			}
-//			if(opened == 0){
-//				if(reader.hasNext()){
-//					moveToNextChar();
-//				}
-//				return reader.getFilePosition();
-//			}
-//			prevByte = b;
-//		}
-//		return -1;
-//	}
-//	
-	//TODO: what does it return and why?
 	private long moveToTheEndOfToken(char openingSymbol, char closingSymbol)throws IOException{
 		int opened = 1;
 		while(reader.hasNext()){
@@ -263,10 +239,11 @@ public class LazyByteStreamParser {
 			}
 			
 			if(opened == 0){
+				long closingSymbolPos = reader.getFilePosition() - 1;// since we've already read the closingSymbol
 				if(reader.hasNext()){
 					moveToNextChar();
 				}
-				return reader.getFilePosition();
+				return closingSymbolPos;
 			}
 		}
 		return -1;
@@ -309,21 +286,18 @@ public class LazyByteStreamParser {
 		if(DEBUG){
 			System.out.println("Entered parseValue");
 		}
-		JSONNode ret = null;
+		JSONNonTreeNode ret = null;
 		if(curChar == '{'){
-			ret = new JSONNode(JSONNode.TYPE_OBJECT, name);
-			ret.setIsFullyLoaded(false);
+			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken('{', '}');
+			ret.setEndFilePosition(moveToTheEndOfToken('{', '}'));
 		} else if(curChar == '['){
-			ret = new JSONNode(JSONNode.TYPE_ARRAY, name);
-			ret.setIsFullyLoaded(false);
-			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
-			moveToTheEndOfToken('[', ']');
+			ret = new JSONNonTreeNode(JSONNode.TYPE_ARRAY, name);
+			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
+			ret.setEndFilePosition(moveToTheEndOfToken('[', ']'));
 		} else if(curChar == '\"'){
 			StringWithCoords str = parseString(true);
-			ret = new JSONNode(JSONNode.TYPE_STRING, name, str.getString());
-			ret.setIsFullyLoaded(str.isFullyRead());
+			ret = new JSONNonTreeNode(JSONNode.TYPE_STRING, name, str.isFullyRead(), str.getString());
 			ret.setStartFilePosition(str.openingQuotePos);
 			ret.setEndFilePosition(str.closingQuotePos);
 		} else if(curChar == 't'){
@@ -343,7 +317,7 @@ public class LazyByteStreamParser {
 		}
 		return ret;
 	}
-	private JSONNode parseNumber(String name) throws IOException{
+	private JSONNonTreeNode parseNumber(String name) throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseNumber");
 		}
@@ -357,13 +331,13 @@ public class LazyByteStreamParser {
 			if(DEBUG){
 				System.out.println("Done with parseNumber: "+reader.getFilePosition()+", '"+curChar+"'");
 			}
-			return new JSONNode(JSONNode.TYPE_NUMBER, name, number);
+			return new JSONNonTreeNode(JSONNode.TYPE_NUMBER, name, number);
 		}
 		throwUnexpectedSymbolException(number + " at pos "+
 		(reader.getFilePosition()-number.length())+" is not a number");
 		return null;
 	}
-	private JSONNode parseKeyword(String name, String keyword)throws IOException{
+	private JSONNonTreeNode parseKeyword(String name, String keyword)throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseKeyword");
 		}
@@ -376,7 +350,7 @@ public class LazyByteStreamParser {
 		if(DEBUG){
 			System.out.println("Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return new JSONNode(JSONNode.TYPE_KEYWORD, name, keyword);
+		return new JSONNonTreeNode(JSONNode.TYPE_KEYWORD, name, keyword);
 	}
 	
 	private void throwUnexpectedSymbolException(String msg){
@@ -480,6 +454,8 @@ public class LazyByteStreamParser {
 		}
 		
 		public boolean isFullyRead(){
+			//TODO: wrong way to estimate if the string is fully loaded:
+			// length of string not always == number of bytes
 			return string.length() == closingQuotePos - openingQuotePos - 1;
 		}
 		

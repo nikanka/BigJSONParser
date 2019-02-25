@@ -18,7 +18,9 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.bigjson.parser.JSONNode;
 import com.bigjson.parser.LazyByteStreamParser;
@@ -27,6 +29,10 @@ import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
 
 
 public class LazyByteStreamParserTest {
+	
+	@Rule
+    public ExpectedException thrown = ExpectedException.none();
+
 
 	@Test
 	public void shouldParseSmallJSONFile() throws IOException{
@@ -36,7 +42,9 @@ public class LazyByteStreamParserTest {
 		fileName = "testFiles/SmallTest2.json";
 		parseAndCompare(fileName, 10000);
 		parseAndCompare(fileName, 10);
-		
+		fileName = "testFiles/SmallTest3.json";
+		parseAndCompare(fileName, 10000);
+		parseAndCompare(fileName, 10);
 		
 	}
 	private void parseAndCompare(String fileName, int stringLenngth) throws IOException{
@@ -144,68 +152,50 @@ public class LazyByteStreamParserTest {
 
 	
 	@Test
-	public  void shouldReadStringWithEscapedQuote()throws IOException {
+	public void shouldReadStringWithEscapedQuote()throws IOException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest1.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
-		fw.write("\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"bbbbbbbbb\"");
+		String str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"bbbbbbbbb";
+		fw.write("\""+str+"\"");
 		fw.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"bbbbbbbbb", result.get(0));
-	}
-	
-	@Test
-	public void shouldReadStringInRussian()throws IOException {
-		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest4.txt");
-		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
-				Charset.forName("UTF-8").newEncoder());
-		String str = "Строчка\\\"\nЕще одна строчка";
-		System.out.println(str);
-		writer.write("\"");
-		writer.write(str);
-		writer.write("\" aaaaaaaaaa");// 10 'a'
-		writer.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		System.out.println(Arrays.toString(str.getBytes("UTF8")));
-		System.out.println(Arrays.toString(result.get(0).getBytes("UTF8")));
-		assertEquals(str, result.get(0));
-
+		List<String> strings = new ArrayList<String>();
+		strings.add(str);
+		checkAllStringsFromFile(fileName, 20, strings);
+//		assertEquals(1, result.size());
+//		assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"bbbbbbbbb", result.get(0));
 	}
 	
 	@Test
 	public void shouldReadAllStrings()throws IOException{
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest5.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
 				Charset.forName("UTF-8").newEncoder());
+		List<String> strings = new ArrayList<String>();
 		// Empty string
-		String str1 = "f";
+		strings.add("");
 		// long string
 		char[] arr = new char[UTF8FileReader.bufferSize + 100];
 		Arrays.fill(arr, 's');
-		String str2 = new String(arr);
+		strings.add(new String(arr));
 		// string in Russian
-		String str3 = "Строчка\\\"\nЕще одна �?трочка";
-				
-		writer.write("String #1 = \""+str1+"\"; ");
-		writer.write("String #2 = \""+str2+"\"; ");
-		writer.write("String #3 = \""+str3+"\"; ");
+		strings.add("Строчка\\\"\nЕще одна cтрочка");
+		// string in German
+		strings.add("Äpfel, \\\"Männer\\\", Bänke, Hände");
+		// string in Japan	
+		strings.add("投ネノ対仲講ーしさ  た米掲ルヌセ解更みフ まけ疎断 でさぽざ  \\\"宗度年テ参授ラ設50多海こざび語記");
+		for(int i = 0; i < strings.size(); i++){
+			writer.write("String #"+i+" = \""+strings.get(i)+"\"; ");		
+		}
 		writer.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(3, result.size());
-		assertEquals(str1, result.get(0));
-		assertEquals(str2, result.get(1));
-		assertEquals(str3, result.get(2));
-		
+		checkAllStringsFromFile(fileName, 10, strings);		
 	}
 
 	
 	@Test
 	public void shouldReadStringWithQuoteAtByteBufferEdge()throws IOException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest2.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
 		Arrays.fill(prefix, 's');
@@ -214,14 +204,14 @@ public class LazyByteStreamParserTest {
 		fw.write(str);
 		fw.write("\"aaaaaaaaaa");// 10 'a'
 		fw.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		assertEquals(str, result.get(0));
+		List<String> strings = new ArrayList<String>();
+		strings.add(str);
+		checkAllStringsFromFile(fileName, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithQuoteAtCharBufferEdge()throws IOException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest2.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize];
 		Arrays.fill(prefix, 's');
@@ -230,36 +220,35 @@ public class LazyByteStreamParserTest {
 		fw.write(str);
 		fw.write("\"aaaaaaaaaa");// 10 'a'
 		fw.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		assertEquals(str, result.get(0));
+		List<String> strings = new ArrayList<String>();
+		strings.add(str);
+		checkAllStringsFromFile(fileName, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtByteBufferEdge()throws IOException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest2.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-2];
 		
 		Arrays.fill(prefix, 's');
 		String str = new String(prefix);
 		str = str + "\\\"StringEnd";
-		System.out.println(str.substring(8191));
+		//System.out.println(str.substring(8191));
 		fw.write("\"");
 		fw.write(str);
 		fw.write("\"aaaaaaaaaa");// 10 'a'
 		fw.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		assertEquals(str, result.get(0));
+		List<String> strings = new ArrayList<String>();
+		strings.add(str);
+		checkAllStringsFromFile(fileName, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtCharBufferEdge()throws IOException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFilePath("UTF8FileReaderTest3.txt");
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
-		
 		Arrays.fill(prefix, 's');
 		String str = new String(prefix);
 		str = str + "\\\"StringEnd";
@@ -268,25 +257,47 @@ public class LazyByteStreamParserTest {
 		fw.write(str);
 		fw.write("\"aaaaaaaaaa");// 10 'a'
 		fw.close();
-		List<String> result = readAllStringsFromFile(fileName, -1);
-		assertEquals(1, result.size());
-		assertEquals(str, result.get(0));
+		List<String> strings = new ArrayList<String>();
+		strings.add(str);
+		checkAllStringsFromFile(fileName, 5, strings);
 	}
 
+	@Test
+	public void shouldNotReadOutsideOfFile() throws IOException{
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(fileName);
+		fw.write("a");
+		fw.close();
+		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1);
+		thrown.expect(IOException.class);
+		parser.loadStringAtPosition(2, 3);
+	}
+	
 
-	private List<String> readAllStringsFromFile(String fileName, int strMaxLen)throws IOException{
+	private void checkAllStringsFromFile(String fileName, int strMaxLen, List<String> expected)throws IOException{
 		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, strMaxLen);
-		List<String> result = new ArrayList<String>();
+		List<StringWithCoords> resultWithCoords = new ArrayList<StringWithCoords>();
+		// find all strings
 		while(parser.hasNext()){
 			parser.moveToNextChar();
 			// we suppose that backslash means nothing outside of a string 
 			// and that it cannot be seen outside of a  string in a real correct JSON file
 			if(parser.getCurChar() == '"'){
 				StringWithCoords str = parser.parseString(strMaxLen >= 0);
-				result.add(str.getString());
+				resultWithCoords.add(str);
 			}
 		}
-		return result;
+		assertEquals(expected.size(), resultWithCoords.size());
+		// load Strings by coords
+		for(int i = 0; i < expected.size(); i++){
+			StringWithCoords str = resultWithCoords.get(i);
+			String exp = expected.get(i);
+			if(strMaxLen >= 0){
+				assertEquals(exp.substring(0, Math.min(exp.length(), strMaxLen)), str.getString());
+			}
+			String s = parser.loadStringAtPosition(str.getOpeningQuotePos(), str.getClosingQuotePos());
+			assertEquals(exp, s);
+		}
 	}
 	
 }
