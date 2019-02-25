@@ -286,21 +286,18 @@ public class LazyByteStreamParser {
 		if(DEBUG){
 			System.out.println("Entered parseValue");
 		}
-		JSONNode ret = null;
+		JSONNonTreeNode ret = null;
 		if(curChar == '{'){
-			ret = new JSONNode(JSONNode.TYPE_OBJECT, name);
-			ret.setIsFullyLoaded(false);
+			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
 			ret.setEndFilePosition(moveToTheEndOfToken('{', '}'));
 		} else if(curChar == '['){
-			ret = new JSONNode(JSONNode.TYPE_ARRAY, name);
-			ret.setIsFullyLoaded(false);
+			ret = new JSONNonTreeNode(JSONNode.TYPE_ARRAY, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
 			ret.setEndFilePosition(moveToTheEndOfToken('[', ']'));
 		} else if(curChar == '\"'){
 			StringWithCoords str = parseString(true);
-			ret = new JSONNode(JSONNode.TYPE_STRING, name, str.getString());
-			ret.setIsFullyLoaded(str.isFullyRead());
+			ret = new JSONNonTreeNode(JSONNode.TYPE_STRING, name, str.isFullyRead(), str.getString());
 			ret.setStartFilePosition(str.openingQuotePos);
 			ret.setEndFilePosition(str.closingQuotePos);
 		} else if(curChar == 't'){
@@ -320,7 +317,7 @@ public class LazyByteStreamParser {
 		}
 		return ret;
 	}
-	private JSONNode parseNumber(String name) throws IOException{
+	private JSONNonTreeNode parseNumber(String name) throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseNumber");
 		}
@@ -334,13 +331,13 @@ public class LazyByteStreamParser {
 			if(DEBUG){
 				System.out.println("Done with parseNumber: "+reader.getFilePosition()+", '"+curChar+"'");
 			}
-			return new JSONNode(JSONNode.TYPE_NUMBER, name, number);
+			return new JSONNonTreeNode(JSONNode.TYPE_NUMBER, name, number);
 		}
 		throwUnexpectedSymbolException(number + " at pos "+
 		(reader.getFilePosition()-number.length())+" is not a number");
 		return null;
 	}
-	private JSONNode parseKeyword(String name, String keyword)throws IOException{
+	private JSONNonTreeNode parseKeyword(String name, String keyword)throws IOException{
 		if(DEBUG){
 			System.out.println("Entered parseKeyword");
 		}
@@ -353,7 +350,7 @@ public class LazyByteStreamParser {
 		if(DEBUG){
 			System.out.println("Done with parseKeyword: "+reader.getFilePosition()+", '"+curChar+"'");
 		}
-		return new JSONNode(JSONNode.TYPE_KEYWORD, name, keyword);
+		return new JSONNonTreeNode(JSONNode.TYPE_KEYWORD, name, keyword);
 	}
 	
 	private void throwUnexpectedSymbolException(String msg){
@@ -457,6 +454,8 @@ public class LazyByteStreamParser {
 		}
 		
 		public boolean isFullyRead(){
+			//TODO: wrong way to estimate if the string is fully loaded:
+			// length of string not always == number of bytes
 			return string.length() == closingQuotePos - openingQuotePos - 1;
 		}
 		

@@ -31,7 +31,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreePath;
 
-import com.bigjson.parser.JSONInterface;
+import com.bigjson.parser.JSONLoader;
 import com.bigjson.parser.JSONNode;
 
 /**
@@ -46,7 +46,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	private static String loadFileStr = "Load tree from JSON file";
 	
 	private DefaultTreeModel treeModel;
-	private JSONInterface backend;
+	private JSONLoader backend;
 	
 	private JScrollPane scrollPane;
 	private JTree treeView;
@@ -151,7 +151,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			}
 		}
 		try{
-			backend = new JSONInterface(file.getAbsolutePath());
+			backend = new JSONLoader(file.getAbsolutePath());
 			JSONTreeNode rootNode = new JSONTreeNode(backend.getRoot());
 			treeModel = new DefaultTreeModel(rootNode, true);
 			treeView = new JTree(treeModel);
@@ -182,6 +182,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 //		if (parent.isFullyLoaded()) {
 //			return;
 //		}
+		long loadTime = System.currentTimeMillis();
 		try{
 			//List<JSONNode> children = backend.loadChildren(parent.getJSONNode().getStartFilePosition());
 			for(int i=0; i < parent.getChildCount(); i++){
@@ -198,6 +199,8 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			showDialog("IOException occured while loading children nodes: " + e.getMessage());
 		}
 		//parent.setIsFullyLoaded(true);
+		loadTime = System.currentTimeMillis() - loadTime;
+		System.out.println("LoadTime for parent node " + parent + ": "+loadTime/1000 +" s");
 	}
 
 	private void loadChildrenForNode(JSONTreeNode parent) throws IOException{
@@ -205,11 +208,11 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 //			System.out.println("\t Node "+parent+" is not allower to have children or it's children are already loaded");
 			return;
 		}
-//		System.out.println("\tLoading children for "+parent +" :\n");
+		//System.out.println("\tLoading children for "+parent +" :\n");
 		List<JSONNode> children = backend.loadChildren(parent.getJSONNode().getStartFilePosition());
 		//treeModel.insertNodeInto(childNode, parent, parent.getChildCount());
 		for(JSONNode child: children){
-//			System.out.println("\t\t"+child.getNodeString());
+			//System.out.println("\t\t"+child.getName()+" : "+child.getValue());
 			treeModel.insertNodeInto(new JSONTreeNode(child), parent, parent.getChildCount());
 		}
 		parent.setChildrenAreLoaded(true);
@@ -254,19 +257,50 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		private JSONTreeNode(JSONNode node) {
 			super();//getNodeStringWithSize(node),//getNodeStringWithSize(),
 					//node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT);
-			this.node = node;
-			this.setUserObject(getNodeStringWithSize());
+//			this.node = node;// TODO
+			this.setUserObject(node);
 			this.setAllowsChildren(node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT);
 		}
 
-		private String getNodeStringWithSize(){
-			if(node.isFullyLoaded()){
-				return node.getNodeString();
+//		private String getNodeStringWithSize(){
+//			if(node.isFullyLoaded()){
+//				return node.getNodeString();
+//			}
+//			StringBuilder sb = new StringBuilder(node.getNodeString());
+//			sb.append("  [");
+//			sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
+//			sb.append("Kb]");
+//			return sb.toString();
+//		}
+		
+		private String createNodeString(){
+			StringBuilder sb = new StringBuilder((node.getName()==null?0:node.getName().length()) 
+					+ (node.getValue()==null?0:node.getValue().length()) + 40);
+			if(node.getName() != null){
+				sb.append(node.getName());
 			}
-			StringBuilder sb = new StringBuilder(node.getNodeString());
-			sb.append("  [");
-			sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
-			sb.append("Kb]");
+			if(node.getValue() != null){
+				if(node.getName() != null){
+					sb.append(" : ");
+				}
+				if(node.getType() == JSONNode.TYPE_STRING){
+					sb.append("\"");
+				}
+				sb.append(node.getValue());
+				if(node.getType() == JSONNode.TYPE_STRING){
+					if(!node.isFullyLoaded()){
+						sb.append("...");
+					}
+					sb.append("\"");
+				}
+			}
+			if(node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT ||
+					(node.getType() == JSONNode.TYPE_STRING && !node.isFullyLoaded())){
+				sb.append("  [");
+				sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
+				sb.append("Kb]");
+				
+			}
 			return sb.toString();
 		}
 		private boolean childrenAreLoaded() {
@@ -276,20 +310,23 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		private void setChildrenAreLoaded(boolean newVal) {
 			this.childrenAreLoaded = newVal;
 		}
-		
+		@Override
+		public void setUserObject(Object userObject) {
+			if(!(userObject instanceof JSONNode)){
+				throw new IllegalArgumentException("userObject should be an instance of JSONNode class");
+			}
+			this.node = (JSONNode)userObject;
+			super.setUserObject(createNodeString());
+		}
 		private String loadFullString(){
 			String str = null;
 			try {
-				str = backend.loadFullString(node.getStartFilePosition(),
-						node.getEndFilePosition());
-				System.out.println(str);
-				node.setIsFullyLoaded(true);
-				backend.setNodeValue(node, str);
-				this.setUserObject(getNodeStringWithSize());
+				node = backend.loadNodeWithFullString(node);
+				setUserObject(node);
 				treeModel.nodeChanged(this);
 			} catch (IOException ex) {
 				JOptionPane.showMessageDialog(null, "IOException occured while loading full string for "
-						+ node.getNodeString() + ": " + ex.getMessage());
+						+ getUserObject() + ": " + ex.getMessage());
 
 			}
 			return str;
