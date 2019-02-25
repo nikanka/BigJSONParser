@@ -21,6 +21,7 @@ public class UTF8FileReader {
 	boolean DEBUG = false;
 	
 	private long filePos = 0;
+	private String fileName;
 	private FileInputStream input;
 	private FileChannel fileChannel;
 	private ByteBuffer byteBuffer;
@@ -33,13 +34,17 @@ public class UTF8FileReader {
 
 		
 	public UTF8FileReader(String fileName) throws IOException {
+		this.fileName = fileName;
 		input = new FileInputStream(fileName);
 		fileChannel = input.getChannel();
 		charBuffer = CharBuffer.allocate(bufferSize);
 		byteBuffer = ByteBuffer.allocate(bufferSize);
 		byteBuffer.flip();
 		charBuffer.flip();
-		readBytes();
+		hasNext = readBytes() >= 0;
+		if(!hasNext){
+			throw new IOException("It looks like file " + fileName + " is empty");
+		}
 	}
 	
 	void closeFileInputStream() throws IOException{
@@ -58,6 +63,10 @@ public class UTF8FileReader {
 	 */
 	public long getFilePosition(){
 		return filePos;
+	}
+	
+	public String getFileName(){
+		return fileName;
 	}
 	
 	/**
@@ -97,22 +106,26 @@ public class UTF8FileReader {
 				" ("+filePos+")");
 		int read = input.read(byteBuffer.array(), byteBuffer.arrayOffset() + pos, rem);
 		if(read < 0){
-			hasNext = false;
-			return read;
+//			hasNext = false;
+			byteBuffer.limit(pos);
+			//return read;
+		} else {
+			byteBuffer.limit(pos + read);
 		}
-		if(read == 0) {
-			System.err.println(byteBuffer.array().length);
-			System.err.println(fileChannel.position());
-			throw new IOException("Input stream returned 0 bytes");
-		}
-		byteBuffer.position(pos+read);
-		byteBuffer.flip();
+//		if(read == 0) {
+//			System.err.println(byteBuffer.array().length);
+//			System.err.println(fileChannel.position());
+//			throw new IOException("Input stream returned 0 bytes");
+//		}
+//		byteBuffer.position(pos+read);
+//		byteBuffer.flip();
+		
 		if(DEBUG) {
 			System.out.println("Bytes read from file: "+read+ " bytes");
 			System.out.println("Byte buffer after reading: "+byteBuffer);
 		}
 		
-		return byteBuffer.remaining();
+		return read;//byteBuffer.remaining();
 	}
 	
 	/**
@@ -131,13 +144,13 @@ public class UTF8FileReader {
 	 */
 	private byte getNextByte() throws IOException{
 		if(!hasNext()){
-			throw new IOException("Unexpected end of stream at pos " + filePos);
+			throw new IOException("Unexpected end of stream at pos " + filePos + " of file " + fileName);
 		}
 		byte ret = byteBuffer.get();
 		filePos++;
 		if(byteBuffer.position() == byteBuffer.limit()){
 			if(DEBUG) System.out.println("GetNextByte buffer reload");
-			readBytes();
+			hasNext = readBytes()>=0;
 		}
 		return ret;
 	}
@@ -150,12 +163,16 @@ public class UTF8FileReader {
 	 * @throws IOException
 	 */
 	public char getNextChar() throws IOException{
-//		if(!hasNext){
-//			throw new RuntimeException("Unexpected end of stream at pos " + filePos);
-//		}
+		if(!hasNext){
+			throw new IOException("Unexpected end of stream at pos " + filePos + " of file " + fileName);
+		}
 		char ret = 1;	
 		if(currentMode == MODE_READING_CLOSING_QUOTE){
-			ret = (char)getNextByte();
+			try{
+				ret = (char)getNextByte();
+			} catch(IOException e){
+				throw new IllegalArgumentException(e.getMessage() + " while reading a closing quote of a String ");
+			}
 			assert ret == '\"': "'"+ret+"'";
 			currentMode = MODE_READING_ASCII_CHARS;
 			if (DEBUG) System.out.println("CHANGE MODE TO READING ASCII");
@@ -335,25 +352,27 @@ public class UTF8FileReader {
 					 if (DEBUG) System.out.println("EOF: "+byteBuffer);
 					 break;
 				}
-				assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();
-					
+				assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();	
 				if (!charBuffer.hasRemaining()){
 					break;
 				}
 				// if ((cb.position() > 0) && !inReady())
 				// break; // Block at most once
-				escaped = byteBuffer.get(byteBuffer.position()-1) == '\\';
+				if(byteBuffer.position() > 0){
+					escaped = byteBuffer.get(byteBuffer.position()-1) == '\\';
+				}
 				if (DEBUG) System.out.println("\t\tRead chars: byte reload (escaped = "+escaped+")");
-				
 				int n = readBytes();
 				if (n < 0) {
-					eof = true;// TODO it seems that this eof value does not affect anything
+					throw new IllegalArgumentException("Unexpected end of file while reading String at pos " + filePos
+							+ " of file '" + fileName + "'");
+					// eof = true;// TODO it seems that this eof value does not affect anything
 //					hasNext = false;
 //					 if ((charBuffer.position() == 0) && (!byteBuffer.hasRemaining()))
 //					 break;
 //					decoder.reset();
 				}
-				 continue;
+				continue;
 			} else if (cr.isOverflow()) {
 				if (DEBUG) System.out.println("Overflow");
 				assert charBuffer.position() > 0;
@@ -382,7 +401,7 @@ public class UTF8FileReader {
 		
 	}
 	
-	private int scanForClosingQuote(boolean escaped) throws IOException {
+	private int scanForClosingQuote(boolean escaped){// throws IOException {
 		if(byteBuffer.remaining() == 0){
 			return -1;
 		}
