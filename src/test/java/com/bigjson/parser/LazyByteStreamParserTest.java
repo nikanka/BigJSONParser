@@ -22,7 +22,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.bigjson.parser.JSONNode;
 import com.bigjson.parser.LazyByteStreamParser;
 import com.bigjson.parser.UTF8FileReader;
 import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
@@ -261,6 +260,23 @@ public class LazyByteStreamParserTest {
 		strings.add(str);
 		checkAllStringsFromFile(fileName, 5, strings);
 	}
+	@Test
+	public void shouldReadStringWithEscapedBackslashAndQuotes()throws IOException{
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(fileName);
+		List<String> strings = new ArrayList<String>();
+		// will be ..."aaa\\aaa"... in file -> should read as 'aaa\aaa'
+		fw.write("string with one backslash: \"aaa\\\\aaa\"; ");
+		strings.add("aaa\\aaa");
+		// will be ..."bbb\\"... in file -> should read as 'bbb\'
+		fw.write("string with two backslashes: \"bbb\\\\\"; "); 
+		strings.add("bbb\\");
+		// will be ..."bbb\\\"string continues"... in file -> should read as 'bbb\"string continues'
+		fw.write("string with backslash and quote: \"bbb\\\\\"string continues\""); 
+		strings.add("bbb\\\"string continues");
+		fw.close();
+		checkAllStringsFromFile(fileName, -1, strings);
+	}
 
 	@Test
 	public void shouldNotReadOutsideOfFile() throws IOException{
@@ -285,6 +301,7 @@ public class LazyByteStreamParserTest {
 			if(parser.getCurChar() == '"'){
 				StringWithCoords str = parser.parseString(strMaxLen >= 0);
 				resultWithCoords.add(str);
+				System.out.println("Parsed String: '"+str.getString()+"'");
 			}
 		}
 		assertEquals(expected.size(), resultWithCoords.size());

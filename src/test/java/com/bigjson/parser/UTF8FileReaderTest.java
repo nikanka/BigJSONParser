@@ -89,7 +89,7 @@ public class UTF8FileReaderTest {
 		return generatedStrings;
 	}
 	static String getGeneratedFileName(){
-		String name = getGeneratedFilePath("test" + fileInd + " .txt");
+		String name = getGeneratedFilePath("test" + fileInd + ".txt");
 		fileInd++;
 		System.out.println("Current test file: " + name);
 		return name;

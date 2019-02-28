@@ -16,10 +16,10 @@ public class JSONLoader {
 	private JSONNode root;
 	private String fileName;
 	
-	public JSONLoader(String fileName) throws IOException{
+	public JSONLoader(String fileName) throws IOException, IllegalFormatException{
 		this(fileName, null);
 	}
-	public JSONLoader(String fileName, String topLevelName) throws IOException{
+	public JSONLoader(String fileName, String topLevelName) throws IOException, IllegalFormatException{
 		this.fileName = fileName;
 		parser = new LazyByteStreamParser(fileName, 20);
 		root = parser.parseTopLevel(topLevelName);//TODO: should check format at this point
@@ -35,10 +35,10 @@ public class JSONLoader {
 		return fileName;
 	}
 		
-	public List<JSONNode> loadChildren(long pos) throws IOException{
+	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{
 		return parser.loadChildrenAtPosition(pos);
 	}
-	public List<JSONNode> loadChildren(JSONNode node) throws IOException{
+	public List<JSONNode> loadChildren(JSONNode node) throws IOException, IllegalFormatException{
 		if(node == null){
 			return null;
 		}
@@ -50,12 +50,12 @@ public class JSONLoader {
 	 * @param node
 	 * @return
 	 */
-	public JSONNode loadNodeWithFullString(JSONNode node) throws IOException{
+	public JSONNode loadNodeWithFullString(JSONNode node) throws IOException, IllegalFormatException{
 		String str = loadFullString(node.getStartFilePosition(), node.getEndFilePosition());
 		return node.createNodeCopyWithNewValue(str, true);
 	}
 	
-	public String loadFullString(long openingQuotePos, long closingQuotePos) throws IOException{
+	public String loadFullString(long openingQuotePos, long closingQuotePos) throws IOException, IllegalFormatException{
 		return parser.loadStringAtPosition(openingQuotePos, closingQuotePos);
 	}
 	
