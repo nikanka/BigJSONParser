@@ -19,6 +19,21 @@ public class JSONLoader {
 	public JSONLoader(String fileName) throws IOException, IllegalFormatException{
 		this(fileName, null);
 	}
+	
+	/**
+	 * Creates a loader for a given JSON file.
+	 * 
+	 * @param fileName
+	 * @param topLevelName
+	 *            what name should be given (for display purposes) to the
+	 *            top-level node. If topLevelName == null, the default name
+	 *            ("JSON") will be used 
+	 * @throws IOException
+	 *             if file is not found or empty or if an I/O error occurs while
+	 *             reading bytes from the file
+	 * @throws IllegalFormatException
+	 *             if the format of the data is not as expected
+	 */
 	public JSONLoader(String fileName, String topLevelName) throws IOException, IllegalFormatException{
 		this.fileName = fileName;
 		parser = new LazyByteStreamParser(fileName, 20);

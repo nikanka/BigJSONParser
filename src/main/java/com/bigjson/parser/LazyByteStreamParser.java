@@ -29,12 +29,12 @@ public class LazyByteStreamParser {
 	private static final String KEYWORD_TRUE = "true";
 	private static final String KEYWORD_FALSE = "false";
 	private static final String KEYWORD_NULL = "null";
-	private static final boolean DEBUG = false; 
 	private static final String defaultTopLevelName = "JSON";
+	
+	private static final boolean DEBUG = false; 
 	
 	private int stringDisplayLength = 4;
 	private UTF8FileReader reader;
-//	private char curChar;
 	/**
 	 * Contains last read byte outside strings. 
 	 * When reading a string it contains a quote (last symbol read before entering a string). 
@@ -47,9 +47,11 @@ public class LazyByteStreamParser {
 	 * 
 	 * @param fileName
 	 * @param stringDisplayLimit
-	 *            how many first characters of string values to load. If <0 the
-	 *            full strings are loaded
+	 *            how many first characters of a string to view. If
+	 *            stringDisplayLimit < 0 full strings are loaded
 	 * @throws IOException
+	 *             if file is not found or empty or if an I/O error occurs while
+	 *             reading bytes from the file
 	 */
 	protected LazyByteStreamParser(String fileName, int stringDisplayLimit) throws IOException{
 		reader = new UTF8FileReader(fileName);
@@ -63,9 +65,9 @@ public class LazyByteStreamParser {
 //		return curChar;
 //	}
 
-//	byte getCurByte(){
-//		return curByte;
-//	}
+	byte getCurByte(){
+		return curByte;
+	}
 	private static char byteToChar(byte b){
 		return (char)(b & 0xFF);
 	}
@@ -154,17 +156,6 @@ public class LazyByteStreamParser {
 		return str.getString();
 	}
 
-//	/**
-//	 * Parse an array: '[' { value [, value] } ']' and create a new tree node.
-//	 * If <code>lazy</code> is <code>true</code> does not parse array content.
-//	 * In the beginning of the method the cursor should be at '['. 
-//	 * After this method the cursor should be at the char following the ']' if any. 
-//	 * @return
-//	 */
-//	private JSONNode parseArray(String name, boolean lazy) throws IOException{
-//		JSONNode arrayNode = new JSONNode(JSONNode.TYPE_ARRAY, name, level);
-//		return parseArray(arrayNode, lazy);
-//	}
 	/**
 	 * Parse an array: '[' { value [, value] } ']' and return a list of array nodes.
 	 * In the beginning of the method the cursor should be at '['. 
@@ -182,17 +173,6 @@ public class LazyByteStreamParser {
 		if(curByte != '['){
 			throwIllegalFormatExceptionWithFilePos("Array should start with '['");
 		}
-//		JSONTreeNode arrayNode = new JSONTreeNode(JSONTreeNode.TYPE_ARRAY, name, level);
-//		arrayNode.setIsFullyLoaded(!lazy);
-//		if(lazy){
-//			arrayNode.setFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
-//			moveToTheEndOfToken('[', ']');
-//			if(DEBUG){
-//				System.out.println(
-//						removeTab() + "Finished lazy loading of an array. File pos = " + reader.getFilePosition());
-//			}
-//			return arrayNode;
-//		}
 		List<JSONNode> nodeList = new ArrayList<JSONNode>();
 		moveToNextNonspaceByte();
 		while(curByte != ']'){
@@ -201,9 +181,9 @@ public class LazyByteStreamParser {
 			if(curByteIsWhitespace()){
 				moveToNextNonspaceByte();
 			}
-//			if(curByte == ']'){
-//				break;
-//			}
+			if(curByte == ']'){
+				break;
+			}
 			if(curByte == ','){
 				moveToNextNonspaceByte();
 			} else {
@@ -211,9 +191,6 @@ public class LazyByteStreamParser {
 						+ "an element in an array: '" + byteToChar(curByte) + "'");
 			}
 		}
-//		if(reader.hasNext()){	
-//			moveToNextByte();
-//		}
 		if(DEBUG){
 			System.out.println("Done with parseArray: "+reader.getFilePosition()+", '"+byteToChar(curByte)+"'");
 		}
@@ -249,9 +226,9 @@ public class LazyByteStreamParser {
 			if(curByteIsWhitespace()){
 				moveToNextNonspaceByte();
 			}
-//			if(curByte == '}'){
-//				break;
-//			}
+			if(curByte == '}'){
+				break;
+			}
 			if(curByte == ','){
 				moveToNextNonspaceByte();
 			} else {
@@ -288,17 +265,26 @@ public class LazyByteStreamParser {
 	 *             symbol is met or if a non-ASCII character is met outside of
 	 *             strings
 	 */
-	private long moveToTheEndOfToken(char openingSymbol, char closingSymbol)throws IOException, IllegalFormatException{
+	private long moveToTheEndOfToken(byte openingSymbol, byte closingSymbol)throws IOException, IllegalFormatException{
 		int opened = 1;
 		while(reader.hasNext()){
-			char ch = reader.getNextChar();
-			if(ch == '"'){// String starts
+			//char ch = reader.getNextChar();
+			moveToNextByte();
+			if(curByte == '"'){// String starts
+				if(DEBUG){
+					System.out.println("Skip the string with opening quote at pos "+(reader.getFilePosition() - 1));
+				}
 				reader.skipTheString();
+				moveToNextByte();
+				if(curByte != '"'){
+					throwIllegalFormatExceptionWithFilePos(
+							"Expected a quote at the end of a string, got: '" + byteToChar(curByte) + "'");
+				}
 				continue;
 			}
-			if(ch == closingSymbol){
+			if(curByte == closingSymbol){
 				opened--;
-			} else if(ch == openingSymbol){
+			} else if(curByte == openingSymbol){
 				opened++;
 			}
 			if(opened == 0){
@@ -358,7 +344,7 @@ public class LazyByteStreamParser {
 			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '{'
 			try{
-				ret.setEndFilePosition(moveToTheEndOfToken('{', '}'));
+				ret.setEndFilePosition(moveToTheEndOfToken((byte)'{', (byte)'}'));
 				if(reader.hasNext()){
 					moveToNextByte();
 				}
@@ -371,7 +357,7 @@ public class LazyByteStreamParser {
 			ret = new JSONNonTreeNode(JSONNode.TYPE_ARRAY, name);
 			ret.setStartFilePosition(reader.getFilePosition()-1);// -1 since we've already read '['
 			try{
-				ret.setEndFilePosition(moveToTheEndOfToken('[', ']'));
+				ret.setEndFilePosition(moveToTheEndOfToken((byte)'[', (byte)']'));
 				if(reader.hasNext()){
 					moveToNextByte();
 				}
@@ -516,17 +502,25 @@ public class LazyByteStreamParser {
 		if(curByte != '"'){
 			throwIllegalFormatExceptionWithFilePos("String does not start with '\"'");
 		}
-		reader.prepareForReadingAString();
+		
 		long openingQuotePos = reader.getFilePosition() - 1;// since we've already read an opening quote
 		StringBuilder sb = new StringBuilder();
-		while(reader.isReadingString()){		
-			if(lazy && sb.length() >= stringDisplayLength){
-				// if we are here, we stopped reading but did not reach the closing quote 
-				// (due to lazy reading), so skip the rest of the string and read the closing quote
-				reader.skipTheString(); 
-				break;
+		// if string is not empty - read it
+		if (reader.peekNextByte() != '"') {
+			// prepare reader for reading a string
+			reader.prepareForReadingAString();
+			while(reader.isReadingString()){		
+				if(lazy && sb.length() >= stringDisplayLength){
+					// if we are here, we stopped reading but did not reach the closing quote 
+					// (due to lazy reading), so skip the rest of the string and read the closing quote
+					if(DEBUG){
+						System.out.println("Skip the string with opening quote at pos "+ openingQuotePos);
+					}
+					reader.skipTheString(); 
+					break;
+				}
+				sb.append(reader.getNextProcessedChar());
 			}
-			sb.append(reader.getNextChar());
 		}
 		long closingQuotePos = reader.getFilePosition();
 		moveToNextByte();
@@ -534,9 +528,6 @@ public class LazyByteStreamParser {
 			throwIllegalFormatExceptionWithFilePos(
 					"Expected a quote at the end of a string, got: '" + byteToChar(curByte) + "'");
 		}
-//		if(reader.hasNext()){
-//			moveToNextByte();
-//		}
 		if(DEBUG){
 			System.out.println("Done with parseString (lazy = " + lazy + "): " + reader.getFilePosition()
 					+ ", '" + (char)curByte + "'");

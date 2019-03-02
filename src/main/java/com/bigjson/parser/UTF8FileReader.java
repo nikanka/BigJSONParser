@@ -11,13 +11,10 @@ import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Arrays;
 
-import javax.management.RuntimeErrorException;
-
 public class UTF8FileReader {
 	public static final int bufferSize = 8192;
 	private static final int MODE_READING_ASCII_CHARS = 0;
 	private static final int MODE_READING_UTF8_CHARS = 1;
-	private static final int MODE_READING_CLOSING_QUOTE = 2;
 	
 	private int currentMode = MODE_READING_ASCII_CHARS;
 	boolean DEBUG = false;
@@ -30,13 +27,21 @@ public class UTF8FileReader {
 	private CharBuffer charBuffer;
 	private StringReadingStateMachine stringReadingState = new StringReadingStateMachine(StringReadingStateMachine.MODE_READ);
 	private boolean hasNext = true;
-	private boolean reachedClosingQuote = false;
+	private ClosingQuoteScanResult quoteScanResult = new ClosingQuoteScanResult();
+	//private boolean reachedClosingQuote = false;
 //	private boolean prevCharIsBackslash = false;
 	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
-		
+	/**
+	 * Creates a reader for a given file
+	 * 
+	 * @param fileName
+	 * @throws IOException
+	 *             if file is not found or empty or if an I/O error occurs while
+	 *             reading bytes from the file
+	 */
 	public UTF8FileReader(String fileName) throws IOException {
 		this.fileName = fileName;
 		input = new FileInputStream(fileName);
@@ -87,16 +92,27 @@ public class UTF8FileReader {
 	 */
 	boolean getToPosition(long pos)throws IOException{
 		if(DEBUG) System.out.println("get to pos "+pos);
+		if(filePos == pos){
+			return hasNext;
+		}
+		//check if this position is within the loaded byte buffer
+		if((pos > filePos && pos-filePos < byteBuffer.remaining()) || 
+			(pos < filePos && filePos - pos <= byteBuffer.position())){
+			byteBuffer.position((int)(byteBuffer.position() + pos - filePos));
+			if(DEBUG)System.out.println("Jumped to byte buffer pos " + byteBuffer.position());
+		} else {
+			// reset buffer
+			byteBuffer.limit(byteBuffer.capacity());
+			// set position  to limit, so that compact() in readBytes() set position to 0
+			// without copying any bytes from the buffer
+			byteBuffer.position(byteBuffer.limit());
+			// read bytes from new pos
+			fileChannel.position(pos);
+			hasNext = readBytes()>=0;
+		}
 		filePos = pos;
-		fileChannel.position(pos);
 //		nextByte = input.read();
 //		return nextByte >= 0;
-		// reset buffer
-		byteBuffer.limit(byteBuffer.capacity());
-		// set position  to limit, so that compact() in readBytes() set position to 0
-		// without copying any bytes from the buffer
-		byteBuffer.position(byteBuffer.limit());
-		hasNext = readBytes()>=0;
 		return hasNext;
 	}
 
@@ -121,13 +137,6 @@ public class UTF8FileReader {
 		} else {
 			byteBuffer.limit(pos + read);
 		}
-//		if(read == 0) {
-//			System.err.println(byteBuffer.array().length);
-//			System.err.println(fileChannel.position());
-//			throw new IOException("Input stream returned 0 bytes");
-//		}
-//		byteBuffer.position(pos+read);
-//		byteBuffer.flip();
 		
 		if(DEBUG) {
 			System.out.println("Bytes read from file: "+read+ " bytes");
@@ -148,10 +157,13 @@ public class UTF8FileReader {
 
 	/**
 	 * Return the next byte from the file and increments current position
-	 * (current position is equal to the position of byte to be read next).
+	 * (current position is equal to the position of byte to be read next).<br>
 	 * If the read byte was the last byte in byte buffer, the buffer is refilled.
 	 * 
-	 * @return
+	 * IMPORTANT: This method will throw a RuntimeException if the reader is not
+	 * in ASCII reading mode. 
+	 * 
+	 * @return byte that was just read
 	 * @throws IOException
 	 *             if an I/O error occurs
 	 * @throws IllegalFormatException
@@ -171,9 +183,42 @@ public class UTF8FileReader {
 		}
 		return ret;
 	}
+	
+	/**
+	 * Peek at the next byte (byte at current file position) without moving to
+	 * it: neither buffer not file positions are changed.
+	 * 
+	 * IMPORTANT: This method will throw a RuntimeException if the reader is not
+	 * in ASCII reading mode.
+	 * 
+	 * @return next byte (byte at current file position)
+	 * @throws IllegalFormatException
+	 *             if the file has no bytes to read
+	 */
+	protected byte peekNextByte() throws IllegalFormatException{
+		if(!hasNext()){
+			throw new IllegalFormatException("Unexpected end of file at pos " + filePos + " of file " + fileName);
+		}
+		if(currentMode != MODE_READING_ASCII_CHARS){
+			throw new RuntimeException("Cannot read bytes in current mode: "+currentMode);
+		}
+		// next position should always be < limit if hasNext==false
+		// because byte buffer is reloaded automatically when next byte is read
+		// and buffer has nothing to read
+		return byteBuffer.get(byteBuffer.position());
+
+	}
+	/**
+	 * Reloads byte buffer. If there is nothing to read left in the file
+	 * hasNext will become false;
+	 * @throws IOException
+	 */
 	private void reloadByteBuffer()throws IOException {
-		if(DEBUG) System.out.println("GetNextByte buffer reload");
+		if(DEBUG) {
+			System.out.println("Byte buffer reload (file pos = "+filePos+"): ");
+		}
 		hasNext = readBytes()>=0;
+		quoteScanResult.setScanned(false);
 	}
 	
 	/**
@@ -257,11 +302,20 @@ public class UTF8FileReader {
 //		return ret;
 //	}	
 	/**
-	 * Reads the next char within a string. If the end of string is reached the
-	 * mode is changed to reading ASCII (=> should use getNextByte() to get next
-	 * symbol which expected to be a quote). If a string contains an escaped
-	 * sequence (like \t or \" or \u0041), all chars within this sequence are
-	 * read and the parsed char is returned (i.e. 't' or '"' or 'A')
+	 * Reads the next char within a string as it is. Does not check for any
+	 * escape sequences.<br>
+	 * If the end of string is reached the mode is changed to reading ASCII (=>
+	 * should use getNextByte() to get next symbol which expected to be a
+	 * quote).<br>
+	 * <br>
+	 * IMPORTANT: This method will throw a RuntimeException if the reader is not
+	 * in UTF8 reading mode. It has to be in this mode only when a string is
+	 * being read, i.e. after an opening quote and up to a closing quote.<br>
+	 * To prepare the reader for the string-reading mode when an opening quote
+	 * is met use <code>prepareForReadingAString()</code> method. <br>
+	 * The reader automatically returns to ASCII-reading mode when an unmasked
+	 * quote is met. To check if the reader in a string(UTF8)-reading mode use
+	 * <code>isReadingString()</code>
 	 * 
 	 * @return nest char in a string
 	 * @throws IOException
@@ -269,89 +323,112 @@ public class UTF8FileReader {
 	 * @throws IllegalFormatException
 	 *             if the end of file is reached before the closing quote is met
 	 */
-	protected char getNextChar() throws IOException, IllegalFormatException{
+	private char getNextChar() throws IOException, IllegalFormatException{
 		if(!isReadingString()){
 			throw new RuntimeException("Cannot read chars outside a string (current mode = " + currentMode + ")");
 		}
 		char curChar = charBuffer.get();
 		// if char buffer is empty - fill it
 		if (!charBuffer.hasRemaining()){
-			if (reachedClosingQuote) {
-				// if we are here the string reading state should be final and last read char should not be a backslash
-				if (!stringReadingState.isInFinalState() || curChar == '\\') {
-					throw new RuntimeException(
-							"We should not have got here being in the middle of reading escaped sequence");
-				}
-//				// and the first byte in byteBuffer should be a quote
-//				byte b = getNextByte();
-//				if (b != '"') {
-//					throw new RuntimeException(
-//							"We should not have got here if the current byte is not a quote, got " + b + " instead");
-//				}
-				reachedClosingQuote = false;
+			// if byte buffer was read (decoded) up to quote we do not need to
+			// reload char buffer (alternatively byte buffer can be decoded up to
+			// position before the quote if char buffer did not have enough
+			// space (overflow))
+			if (quoteScanResult.reachedClosingQuote()
+					&& byteBuffer.position() == quoteScanResult.getClosingQuotePos()) {
+				//				reachedClosingQuote = false;
+				quoteScanResult.reset();
 				currentMode = MODE_READING_ASCII_CHARS;
 				return curChar;
 			} else {
-				reachedClosingQuote = fillCharBufferUpToQuote();
+				fillCharBufferUpToQuote();
 				if (DEBUG) {
 					System.out.println("GetNextChar char buffer load: " + new String(
 							Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
 				}
 			}
 		}
+		return curChar;
+	}	
+
+	/**
+	 * Reads the next char within a string. If a string contains an escaped
+	 * sequence (like \t or \" or \u0041), all chars within this sequence are
+	 * read and the processed char is returned (i.e. 't' or '"' or 'A')<br>
+	 * <br>
+	 * If the end of string is reached the mode is changed to reading ASCII (=>
+	 * should use getNextByte() to get next symbol which expected to be a
+	 * quote).<br>
+	 * <br>
+	 * IMPORTANT: a RuntimeException will be thrown if the reader is not
+	 * in UTF8 reading mode. It has to be in this mode only when a string is
+	 * being read, i.e. after an opening quote and up to a closing quote.<br>
+	 * To prepare the reader for the string-reading mode when an opening quote
+	 * is met use <code>prepareForReadingAString()</code> method. <br>
+	 * The reader automatically returns to ASCII-reading mode when an unmasked
+	 * quote is met. To check if the reader in a string(UTF8)-reading mode use
+	 * <code>isReadingString()</code>
+	 * 
+	 * @return next processed char in a string
+	 * @throws IOException
+	 *             if I/O error occurs
+	 * @throws IllegalFormatException
+	 *             if the end of file is reached before the closing quote is met
+	 *             or non-valid escape sequence is found
+	 */
+	protected char getNextProcessedChar() throws IOException, IllegalFormatException{
+		char curChar = getNextChar();
 		if(curChar == '\\'){
 			while(!stringReadingState.pushChar(curChar)){
+				if(!isReadingString()){
+					throw new IllegalFormatException(
+							"End of string is reached in the middle of reading escaped sequence");
+				}
 				curChar = getNextChar();
 			}	
 			return stringReadingState.getChar();
 		}
-		
 		return curChar;
-	}	
+	}
 
-	protected void prepareForReadingAString(){
+	protected void prepareForReadingAString()throws IOException, IllegalFormatException{
 		currentMode = MODE_READING_UTF8_CHARS;
 		stringReadingState.reset(StringReadingStateMachine.MODE_READ);
+		quoteScanResult.reset();
+		if (DEBUG) {
+			System.out.println("Initial char buffer load: ");
+		}
+		fillCharBufferUpToQuote();
+		if (!charBuffer.hasRemaining()){
+			// if byte buffer was read (decoded) up to quote we do not need to
+			// reload char buffer (alternatively byte buffer can be decoded up to
+			// position before the quote if char buffer did not have enough
+			// space (overflow))
+			if (quoteScanResult.reachedClosingQuote()
+					&& byteBuffer.position() == quoteScanResult.getClosingQuotePos()) {
+				quoteScanResult.reset();
+				currentMode = MODE_READING_ASCII_CHARS;
+				
+			}
+		}
+		if (DEBUG) {
+			System.out.println(charBuffer.limit() + " chars decoded: " + 
+					new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+		}
 	}
 	protected boolean isReadingString(){
 		return currentMode == MODE_READING_UTF8_CHARS;
 	}
-
-//	/**
-//	 * Read and return a whole String starting at a given file position and up to an 
-//	 * unmasked quote. It is assumed the the opening quote has already been read.
-//	 * The file cursor is at the closing quote after this method.<br>
-//	 * This method should be used when the entire String is to be read.
-//	 * @return a String that was read (without quotes)
-//	 * @throws IOException
-//	 */
-//	public String readStringAtPos(long filePos)throws IOException{
-//		StringBuilder sb = new StringBuilder();
-//		boolean lastCharIsBackSlash = false;
-//		for(;;){
-//			int n = fillCharBufferUpToQuote(lastCharIsBackSlash);
-//			assert charBuffer.arrayOffset()==0: charBuffer.arrayOffset();
-//			char[] charArr = charBuffer.array();
-//			sb.append(charArr, 0, n);
-//			if(DEBUG) System.out.println(
-//					"Read " + n + " chars: CharBuffer [pos=" + charBuffer.position() + " lim=" + charBuffer.limit()
-//							+ " cap=" + charBuffer.capacity() + "]\n" + byteBuffer + " (filePos = " + filePos + ")");
-//			if(n < charBuffer.capacity()){
-//				break;
-//			}
-//			lastCharIsBackSlash = charArr[n-1]=='\\';
-//		}
-//		currentMode = MODE_READING_CLOSING_QUOTE;
-//		if(DEBUG) System.out.println("End of readStringTest: "+byteBuffer+" (filePos = "+filePos+")");
-//		return sb.toString();
-//	}
 	
 	/**
 	 * Move the cursor to the end of a String, i.e. to the closing quote. It is
-	 * assumed that before entering the method the cursor is within a String.
+	 * assumed that before entering the method the cursor is within a String (i.e.
+	 * an opening quote and possibly other symbols of the string were already read).
 	 * <br>
 	 * At the end of this method the cursor is at the closing quote (so the next
-	 * byte should be a quote) and the mode is set to reading ASCII.
+	 * byte should be a quote) and the mode is set to reading ASCII. <br>
+	 * The reader can be in any reading mode before entering the method. It will be
+	 * in the ASCII reading mode after the method
 	 * 
 	 * @return current file position (i.e. position of the closing quote)
 	 * @throws IOException
@@ -359,58 +436,94 @@ public class UTF8FileReader {
 	 * @throws IllegalFormatException
 	 *             if end of file is reached before closing quote is met
 	 */
-	protected long skipTheString() throws IOException, IllegalFormatException{
+//	protected long skipTheString() throws IOException, IllegalFormatException{
+//		if(!stringReadingState.isInFinalState()){
+//			throw new RuntimeException(
+//					"We should not have got here if the stateCheck is in non-final state (i.e. in the middle of a backslash sequence)");
+//		}
+//		if(reachedClosingQuote){
+//			// if we reached the quote while previous scan it should be the
+//			// first byte in the byte buffer
+//			currentMode = MODE_READING_ASCII_CHARS;
+//			reachedClosingQuote = false;
+//			// imitate reading char buffer up to the end - for consistency
+//			charBuffer.position(charBuffer.limit());
+////			byte b = getNextByte();
+////			if(b != '"'){
+////				throw new RuntimeException(
+////						"We should not have got here if the current byte is not a quote, got " + b + " instead");
+////			}
+//			return filePos;
+//		}
+//		// if the char buffer was not read up to its limit - read it, but keep track of reding state 
+//		while(charBuffer.hasRemaining()){
+//			char ch = charBuffer.get();
+//			stringReadingState.pushChar(ch);
+//			// we should not meet any closing quotes here
+//			// because we already scanned for them before filling the char buffer
+//		}
+//		// now switch to bytes:
+//		// search for the first unmasked quote in the byte buffer 
+//		currentMode = MODE_READING_ASCII_CHARS;
+//		int quotePos = -1;
+//		while(hasNext() && quotePos < 0){
+//			if(!byteBuffer.hasRemaining()){
+//				reloadByteBuffer();
+//			}
+//			quotePos = scanForClosingQuote();
+//			if(quotePos < 0){
+//				filePos += byteBuffer.remaining();
+//				byteBuffer.position(byteBuffer.limit());
+//			}
+//		}
+//		if(quotePos < 0){
+//			throw new IllegalFormatException("The end of file is reached before finding the closing quote");
+//		}
+//		// move filePosition and the buffer position to the quote pos
+//		filePos += (quotePos - byteBuffer.position());
+//		byteBuffer.position(quotePos);
+//		// reset string reading state since we finished with this string
+//		stringReadingState.reset();
+//		return filePos;
+//	}
+
+	protected void skipTheString() throws IOException, IllegalFormatException{
 		if(!stringReadingState.isInFinalState()){
 			throw new RuntimeException(
 					"We should not have got here if the stateCheck is in non-final state (i.e. in the middle of a backslash sequence)");
 		}
-		if(reachedClosingQuote){
-			// if we reached the quote while previous scan it should be the
-			// first byte in the byte buffer
-			currentMode = MODE_READING_ASCII_CHARS;
-			reachedClosingQuote = false;
-			// imitate reading char buffer up to the end - for consistency
-			charBuffer.position(charBuffer.limit());
-//			byte b = getNextByte();
-//			if(b != '"'){
-//				throw new RuntimeException(
-//						"We should not have got here if the current byte is not a quote, got " + b + " instead");
-//			}
-			return filePos;
+		// imitate reading char buffer up to the end - for consistency
+		charBuffer.position(charBuffer.limit());
+		currentMode = MODE_READING_ASCII_CHARS;	
+		// if we have not found a quote during scan the current byte buffer
+		// we need to search in the next chunk(s) of bytes
+		while (!quoteScanResult.reachedClosingQuote()) {
+			// if we already scanned current buffer we do need to do it again
+			if (quoteScanResult.wasScanned()) {
+				// imitate reading byte buffer up to the end
+				filePos += byteBuffer.remaining();
+				byteBuffer.position(byteBuffer.limit());
+				reloadByteBuffer();
+				if(!hasNext()){
+					throw new IllegalFormatException("The end of file is reached before finding the closing quote");
+				}
+			}
+			// method uses quoteScanResult to maintain escaped state between
+			// byte buffer reloads
+			searchForClosingQuoteInCurrentByteBuffer();
 		}
-		// if the char buffer was not read up to its limit - read it, but keep track of reding state 
-		while(charBuffer.hasRemaining()){
-			char ch = charBuffer.get();
-			stringReadingState.pushChar(ch);
-			// we should not meet any closing quotes here
-			// because we already scanned for them before filling the char buffer
+		// we found the quote - jump directly to closing quote
+		filePos += quoteScanResult.getClosingQuotePos() - byteBuffer.position();
+		byteBuffer.position(quoteScanResult.getClosingQuotePos());
+		if (DEBUG) {
+			System.out.println("Jump to the closing quote pos: in file " + filePos + ", in byteBuffer "
+					+ quoteScanResult.getClosingQuotePos() + " (" + byteBuffer + ")");
 		}
-		// now switch to bytes:
-		// search for the first unmasked quote in the byte buffer 
-		currentMode = MODE_READING_ASCII_CHARS;
-		int quotePos = -1;
-		while(quotePos < 0){
-			quotePos = scanForClosingQuote();
-		}
-		byteBuffer.position(quotePos);
-//		// now we do not care about all string reading states - we just need to know if it is escaped or not
-//		boolean escaped = stringReadingState.isInEscapedState();
-//		while(true){
-//			byte b = getNextByte();
-//			if(b == '"' && !escaped){
-//				stringReadingState.reset();
-//				break;
-//			} 
-//			if(escaped){
-//				escaped = false;
-//			}else if(b == '\\'){
-//				escaped = true;
-//			}
-//		}
-		// TODO: maybe return position of closing quote?
-		return filePos;
+		// reset string reading state and closing quote scan result since we
+		// finished with this string
+		quoteScanResult.reset();
+		stringReadingState.reset();
 	}
-
 
 	/**
 	 * Fill the char buffer with chars starting from current position and up to
@@ -423,9 +536,6 @@ public class UTF8FileReader {
 	 * read or to some position within a string if the quote has not been
 	 * reached and the char buffer is full.
 	 * 
-	 * @param escaped
-	 *            true if the reading state is escaped (i.e. the last read
-	 *            character is a an unmasked backslash)
 	 * @return true if an unmasked quote has been meet
 	 * @throws IOException
 	 *             if I/O error occurs
@@ -433,50 +543,43 @@ public class UTF8FileReader {
 	 *             if the end of file is reached while scanning for closing
 	 *             quote
 	 */
-	private boolean fillCharBufferUpToQuote() throws IOException, IllegalFormatException{
+	private void fillCharBufferUpToQuote() throws IOException, IllegalFormatException{
 		if(DEBUG) System.out.println("Read chars up to quote from : "+ byteBuffer);
 		charBuffer.clear();
-		boolean eof = false;
-//		int byteOldLimit = byteBuffer.limit();
-//		long toDecode = filePosLimit - filePos;
-//		if(toDecode <= byteBuffer.remaining()){
-//			byteBuffer.limit(byteBuffer.position() + (int)toDecode);
-//			eof = true;
-//		}
-		int posBeforeDecoding;
-		//boolean escaped = prevCharWasBackSlash;
-		for (;;) {
-			posBeforeDecoding = byteBuffer.position();
-			if(DEBUG)System.out.println("Scaning for closing quote starting from pos "
-					+ posBeforeDecoding + "...");
-			int quotePos = scanForClosingQuote();
+//		boolean quoteReached = false;
+		while(true) {
+			int posBeforeDecoding = byteBuffer.position();
+//			int quotePos = 
+			if(!quoteScanResult.reachedClosingQuote()){
+				if (DEBUG) System.out.println("Scaning for closing quote starting from pos " + posBeforeDecoding + "...");
+				searchForClosingQuoteInCurrentByteBuffer();
+			}
+//			int quotePos = quoteScanResult.getClosingQuotePos();
 			if(DEBUG){
-				if(quotePos >= 0){
-					System.out.println(" found quote at byte buffer pos " + quotePos);
+				if(quoteScanResult.reachedClosingQuote()){
+					System.out.println(" quote is at byte buffer pos " + quoteScanResult.getClosingQuotePos());
 				} else {
 					System.out.println(" no quote found.");
 				}
 			}
 			int byteOldLimit = byteBuffer.limit();
-			if(quotePos >= 0){
-				byteBuffer.limit(quotePos);
-//				readingState.reset();
-				eof = true;
+			if(quoteScanResult.reachedClosingQuote()){
+				byteBuffer.limit(quoteScanResult.getClosingQuotePos());
+//				quoteReached = true;
 			}
-			CoderResult cr = decoder.decode(byteBuffer, charBuffer, eof);
-			if (DEBUG) System.out.println("\t\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
+			CoderResult cr = decoder.decode(byteBuffer, charBuffer, quoteScanResult.reachedClosingQuote());
+			if (DEBUG) System.out.println("\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
 			// update file position based on the number of read and decoded bytes
 			filePos += (byteBuffer.position() - posBeforeDecoding); 
+			 // restore old byte array limit  
+			 byteBuffer.limit(byteOldLimit);
+			 
 			if (cr.isUnderflow()) {
-				if (DEBUG) System.out.println("\t\tUnderflow, eof = "+eof);
-				if (eof){
-					 // restore old byte array limit so that I can read next bytes from it
-					 // (without decoding)
-					 byteBuffer.limit(byteOldLimit);
-					 if (DEBUG) System.out.println("EOF: "+byteBuffer);
+				if (DEBUG) System.out.println("\tUnderflow, closing quote pos = "+quoteScanResult.getClosingQuotePos() + ": "+byteBuffer);
+				if (quoteScanResult.reachedClosingQuote()){
 					 break;
 				}
-				assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();	
+//				assert byteOldLimit == byteBuffer.limit(): byteOldLimit - byteBuffer.limit();	
 				if (!charBuffer.hasRemaining()){
 					break;
 				}
@@ -486,73 +589,61 @@ public class UTF8FileReader {
 //					escaped = byteBuffer.get(byteBuffer.position()-1) == '\\';
 //				}
 //				if (DEBUG) System.out.println("\t\tRead chars: byte reload (escaped = "+escaped+")");
-				int n = readBytes();
-				if (n < 0) {
+//				int n = readBytes();
+				reloadByteBuffer();
+				if (!hasNext) {
 					throw new IllegalFormatException("Unexpected end of file while reading String");
-					// eof = true;// TODO it seems that this eof value does not affect anything
-//					hasNext = false;
-//					 if ((charBuffer.position() == 0) && (!byteBuffer.hasRemaining()))
-//					 break;
-//					decoder.reset();
 				}
 				continue;
 			} else if (cr.isOverflow()) {
 				if (DEBUG) System.out.println("Overflow");
-				assert charBuffer.position() > 0;
-				// restore old byte array limit 
-				// so that I can read next bytes from it when decoding chars into 
-				// empty char buffer (and yes, I'll need to search for a quote again)
-				// TODO: pass info about closing quote, so I do not to search for it again
-				byteBuffer.limit(byteOldLimit);
 				break;
 			} else {
-				 byteBuffer.limit(byteOldLimit);
+//				 byteBuffer.limit(byteOldLimit);
 				 if (DEBUG) System.err.println("Character coding exception at file pos ~ "+filePos);
 				 cr.throwException();
 			}
 		}
-		 if (eof) {
-			 // flush decoder
+		 if (quoteScanResult.reachedClosingQuote()) {
+			 // reset decoder TODO: why? why only when the quote is reached?
 			 decoder.reset();
 		 }
-		if (charBuffer.position() == 0 && !eof) {
-			throw new RuntimeException("No chars were decoded from byte buffer");
+		if (charBuffer.position() == 0 && !quoteScanResult.reachedClosingQuote()) {
+			throw new RuntimeException("No chars were decoded from byte buffer and the closing quote is not reached");
 		}
+		// made just decoded chars available for reading
 		charBuffer.flip();
 		
-		return eof;//charBuffer.remaining();
+//		return quoteReached;//charBuffer.remaining();
 		
 	}
 	
-	/** 
-	 * Search for an unmasked quote in the current byteBuffer without refilling it.
-	 * The buffer position is not changed after this method.
-	 * @return
+	/**
+	 * Search for an unmasked quote in the current byteBuffer without refilling
+	 * the buffer and without updating buffer or file position. <br>
+	 * Results of the scan are saved in <code>quoteScanResult</code>, which
+	 * contains an unmasked quote position (or -1 if no quote was found)
+	 * relative to the buffer (not a file position!) and an escaped state at the
+	 * end of the buffer (make sense only when quote is not met) <br>
+	 * <br>
+	 * IMPORTANT: everything stays the same after this method: the buffer
+	 * position as well as the file position and the state of stringReadingState
+	 * stay the same as they were before the method. The only thing that is
+	 * updated is quoteScanResult. Also, a new mark in the byte buffer is set.
 	 */
-	private int scanForClosingQuote(){// throws IOException {
-//		if(byteBuffer.remaining() == 0){
-//			return -1;
-//		}
-//		assert byteBuffer.arrayOffset()==0: byteBuffer.arrayOffset();
-//		byte[] arr = byteBuffer.array();
-//		int start = byteBuffer.position();
-//		if(!escaped && arr[start] == '"'){
-//			return start;
-//		}
-//		int limit = byteBuffer.limit();
-//		for(int i = start + 1; i < limit; i++){
-//			if(arr[i] == '"' && arr[i-1] != '\\'){
-//				return i;
-//			}
-//		}
+	private void searchForClosingQuoteInCurrentByteBuffer(){
+		if(!byteBuffer.hasRemaining()){
+			return;
+		}
 		int quotePos = -1;
-		boolean escaped = stringReadingState.isInEscapedState();
-		byteBuffer.mark();// remember the start position
+		boolean escaped = quoteScanResult.isEscaped();//stringReadingState.isInEscapedState();
+		// remember the start position
+		byteBuffer.mark();
 		// scan for an unmasked quote
 		while(byteBuffer.hasRemaining()){
 			byte b = byteBuffer.get();
 			if(b == '"' && !escaped){
-				quotePos = byteBuffer.position();
+				quotePos = byteBuffer.position() - 1;// since we've already read the quote
 				break;
 			} 
 			if(escaped){
@@ -563,11 +654,47 @@ public class UTF8FileReader {
 		}
 		// reset the original position of the buffer
 		byteBuffer.reset();
-		
-		return quotePos;
+		// save scan result
+		quoteScanResult.setReachedClosingQuotePos(quotePos);
+		quoteScanResult.setEscaped(escaped);
+		quoteScanResult.setScanned(true);
+	//	return quotePos;
 	}
 	
-	
+	private static class ClosingQuoteScanResult{
+		boolean scanned = false;
+		private boolean escaped = false;
+		private int closingQuoteBufferPos = -1;
+		
+		void reset(){
+			closingQuoteBufferPos = -1;
+			escaped = false;
+			scanned = false;
+		}
+		boolean reachedClosingQuote(){
+			return closingQuoteBufferPos >= 0;
+		}
+		
+		void setReachedClosingQuotePos(int pos){
+			this.closingQuoteBufferPos = pos;
+		}
+		
+		void setEscaped(boolean escaped){
+			this.escaped = escaped;
+		}
+		boolean isEscaped(){
+			return escaped;
+		}
+		int getClosingQuotePos(){
+			return closingQuoteBufferPos;
+		}
+		boolean wasScanned(){
+			return scanned;
+		}
+		void setScanned(boolean wasScanned){
+			scanned = wasScanned;
+		}
+	}
 
 }
 

@@ -7,7 +7,6 @@ public class StringReadingStateMachine {
 	private char[] unicodeDigits = new char[4];
 	private static final int hex_radix = 16;
 	
-//	public static final int MODE_SCAN_FOR_CLOSING_QUOTE = 0;
 	public static final int MODE_CHECK_FORMAT = 2;
 	public static final int MODE_READ = 2;
 	public static final int STATE_DEFAULT = 0;
@@ -17,27 +16,27 @@ public class StringReadingStateMachine {
 	public static final int STATE_UNICODE_1 = 4;
 	public static final int STATE_UNICODE_2 = 5;
 	
-	public StringReadingStateMachine(int mode){
+	StringReadingStateMachine(int mode){
 		reset(mode);
 	}
 	
-	public void reset(int mode){
+	void reset(int mode){
 		state = STATE_DEFAULT;
 		this.mode = mode;
 	}
-	public void reset(){
+	void reset(){
 		state = STATE_DEFAULT;
 	}
 	
-	public boolean isInFinalState(){
+	boolean isInFinalState(){
 		return state == STATE_DEFAULT;
 	}
 	
-	public boolean isInEscapedState(){
+	boolean isInEscapedState(){
 		return state == STATE_ESCAPE;
 	}
 	
-	public char getChar(){
+	char getChar(){
 		if(mode != MODE_READ){
 			throw new RuntimeException("The current mode is not a reading mode (mode = " + mode + ")");
 		}
@@ -46,7 +45,7 @@ public class StringReadingStateMachine {
 		}
 		return charToReturn;
 	}
-	public boolean pushByte(byte b) throws IllegalFormatException{
+	boolean pushByte(byte b) throws IllegalFormatException{
 		return pushChar((char)(b & 0xFF));
 	}
 	/**
@@ -56,7 +55,7 @@ public class StringReadingStateMachine {
 	 * @return true if the current state is final and a char is ready to be returned
 	 * @throws IllegalFormatException
 	 */
-	public boolean pushChar(char ch) throws IllegalFormatException{
+	boolean pushChar(char ch) throws IllegalFormatException{
 		if(state == STATE_DEFAULT){
 			if(ch == '\\'){
 				state = STATE_ESCAPE;
@@ -66,18 +65,8 @@ public class StringReadingStateMachine {
 			return true;
 		} 
 		if(state == STATE_ESCAPE){
-//			if(mode == MODE_SCAN_FOR_CLOSING_QUOTE){
-//				// if we just scanning we do not check the validity of the format
-//				// we just need to keep track if current char is escaped
-//				state = STATE_DEFAULT;
-//				return true;
-//			}
 			return escapeStatePush(ch);
 		}
-//		if(mode == MODE_SCAN_FOR_CLOSING_QUOTE){
-//			// when scanning for closing quote we do not care about other state: we have only default and escape states
-//			throw new RuntimeException("Should not get here if we are in the scan-for-closing-mode mode");
-//		}
 		if(state == STATE_UNICODE_U){
 			unicodeDigits[0] = charToDigit(ch);
 			state = STATE_UNICODE_0;
