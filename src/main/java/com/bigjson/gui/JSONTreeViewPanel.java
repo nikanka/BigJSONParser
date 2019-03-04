@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -145,7 +146,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	private void loadTreeFromFile(File file){
 		if(backend != null){
 			try{
-				backend.destroy();
+				backend.close();
 			}catch(IOException e){
 				showDialog("An IOException occured while closing the previous file reader: " + e.getMessage());
 				return;

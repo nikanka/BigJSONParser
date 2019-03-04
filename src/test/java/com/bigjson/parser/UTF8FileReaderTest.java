@@ -27,11 +27,12 @@ public class UTF8FileReaderTest {
 		
 	@Test
 	public void checkFilePos() throws IOException, IllegalFormatException{
-		UTF8FileReader reader = new UTF8FileReader(testFileDir + "UTF8FileReaderPositionTest.txt");
-		while(reader.hasNext()){
-			long pos = reader.getFilePosition();
-			int ch = Integer.parseInt(""+(char)reader.getNextByte());
-			assertEquals(pos, ch);
+		try(UTF8FileReader reader = new UTF8FileReader(testFileDir + "UTF8FileReaderPositionTest.txt")){
+			while(reader.hasNext()){
+				long pos = reader.getFilePosition();
+				int ch = Integer.parseInt(""+(char)reader.getNextByte());
+				assertEquals(pos, ch);
+			}
 		}
 	}
  
@@ -40,17 +41,18 @@ public class UTF8FileReaderTest {
 		String fileName = getGeneratedFileName();
 		StringWithCoords[] strings = createFileWithStrings(fileName, 100, 1000, false);
 //		System.out.println(Arrays.toString(strings));
-		UTF8FileReader reader = new UTF8FileReader(fileName);
-		for(int i = 0; i < strings.length; i++){
-			StringWithCoords s = strings[i];
-			System.out.println("String: "+s.getOpeningQuotePos()+".."+s.getClosingQuotePos());
-			reader.getToPosition(s.getOpeningQuotePos());
-			assertEquals('"', (char)reader.getNextByte());
-			reader.skipTheString();
-			long closingQuotePos = reader.getFilePosition();
-			assertEquals('"', (char)reader.getNextByte());
-			assertEquals(s.getClosingQuotePos(), closingQuotePos);
-			assertFalse(reader.isReadingString());
+		try(UTF8FileReader reader = new UTF8FileReader(fileName)){
+			for(int i = 0; i < strings.length; i++){
+				StringWithCoords s = strings[i];
+				System.out.println("String: "+s.getOpeningQuotePos()+".."+s.getClosingQuotePos());
+				reader.getToPosition(s.getOpeningQuotePos());
+				assertEquals('"', (char)reader.getNextByte());
+				reader.skipTheString();
+				long closingQuotePos = reader.getFilePosition();
+				assertEquals('"', (char)reader.getNextByte());
+				assertEquals(s.getClosingQuotePos(), closingQuotePos);
+				assertFalse(reader.isReadingString());
+			}
 		}
 	}
 	
@@ -58,13 +60,14 @@ public class UTF8FileReaderTest {
 	public void shouldThrowIllegalFormatExceptionWhenStringIsNotClosed()throws IOException, IllegalFormatException{
 		String fileName = getGeneratedFileName();
 		StringWithCoords[] strings = createFileWithStrings(fileName, 1, 10000, true);
-		UTF8FileReader reader = new UTF8FileReader(fileName);
-		StringWithCoords s = strings[1];// skip the zero-length string
-		System.out.println("String: "+s.getOpeningQuotePos()+".."+s.getClosingQuotePos());
-		reader.getToPosition(s.getOpeningQuotePos());
-		assertEquals('"', (char)reader.getNextByte());
-		thrown.expect(IllegalFormatException.class);
-		reader.skipTheString();		
+		try(UTF8FileReader reader = new UTF8FileReader(fileName)){
+			StringWithCoords s = strings[1];// skip the zero-length string
+			System.out.println("String: "+s.getOpeningQuotePos()+".."+s.getClosingQuotePos());
+			reader.getToPosition(s.getOpeningQuotePos());
+			assertEquals('"', (char)reader.getNextByte());
+			thrown.expect(IllegalFormatException.class);
+			reader.skipTheString();	
+		}
 	}
 
 	/**

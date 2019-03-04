@@ -1,5 +1,6 @@
 package com.bigjson.parser;
 
+import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,13 +12,13 @@ import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Arrays;
 
-public class UTF8FileReader {
+public class UTF8FileReader implements Closeable{
 	public static final int bufferSize = 8192;
 	private static final int MODE_READING_ASCII_CHARS = 0;
 	private static final int MODE_READING_UTF8_CHARS = 1;
 	
 	private int currentMode = MODE_READING_ASCII_CHARS;
-	boolean DEBUG = false;
+	private boolean DEBUG = false;
 	
 	private long filePos = 0;
 	private String fileName;
@@ -28,8 +29,6 @@ public class UTF8FileReader {
 	private StringReadingStateMachine stringReadingState = new StringReadingStateMachine(StringReadingStateMachine.MODE_READ);
 	private boolean hasNext = true;
 	private ClosingQuoteScanResult quoteScanResult = new ClosingQuoteScanResult();
-	//private boolean reachedClosingQuote = false;
-//	private boolean prevCharIsBackslash = false;
 	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
@@ -56,9 +55,9 @@ public class UTF8FileReader {
 		}
 	}
 	
-	void closeFileInputStream() throws IOException{
-		input.close();
-	}
+//	void closeFileInputStream() throws IOException{
+//		input.close();
+//	}
 	
 	public int getReadingMode(){
 		return currentMode;
@@ -83,6 +82,16 @@ public class UTF8FileReader {
 		return fileName;
 	}
 	
+	@Override
+	public void close() throws IOException {
+		fileChannel.close();
+		input.close();
+	}
+	
+	private void debug(String msg){
+		if(DEBUG)System.out.println("DEBUG: " + msg);
+	}
+	
 	/**
 	 * Set this file channel to a position <code>pos</code>, so that the next byte that is read
 	 * is at the position <code>pos</code> of the file.
@@ -91,7 +100,10 @@ public class UTF8FileReader {
 	 * @throws IOException
 	 */
 	boolean getToPosition(long pos)throws IOException{
-		if(DEBUG) System.out.println("get to pos "+pos);
+		debug("get to pos "+pos);
+		if(pos < 0){
+			throw new IllegalArgumentException("File position should not be negative (got " + pos + ")");
+		}
 		if(filePos == pos){
 			return hasNext;
 		}
@@ -99,7 +111,7 @@ public class UTF8FileReader {
 		if((pos > filePos && pos-filePos < byteBuffer.remaining()) || 
 			(pos < filePos && filePos - pos <= byteBuffer.position())){
 			byteBuffer.position((int)(byteBuffer.position() + pos - filePos));
-			if(DEBUG)System.out.println("Jumped to byte buffer pos " + byteBuffer.position());
+			debug("Jumped to byte buffer pos " + byteBuffer.position());
 		} else {
 			// reset buffer
 			byteBuffer.limit(byteBuffer.capacity());
@@ -127,8 +139,7 @@ public class UTF8FileReader {
 		int rem = byteBuffer.remaining();
 		assert(rem >0): rem;
 		
-		if(DEBUG) System.out.println("Start read from file pos "+fileChannel.position()+
-				" ("+filePos+")");
+		debug("Start read from file pos " + fileChannel.position() + " (" + filePos + ")");
 		int read = input.read(byteBuffer.array(), byteBuffer.arrayOffset() + pos, rem);
 		if(read < 0){
 //			hasNext = false;
@@ -137,11 +148,8 @@ public class UTF8FileReader {
 		} else {
 			byteBuffer.limit(pos + read);
 		}
-		
-		if(DEBUG) {
-			System.out.println("Bytes read from file: "+read+ " bytes");
-			System.out.println("Byte buffer after reading: "+byteBuffer);
-		}
+		debug("Bytes read from file: "+read+ " bytes");
+		debug("Byte buffer after reading: "+byteBuffer);
 		
 		return read;//byteBuffer.remaining();
 	}
@@ -214,9 +222,7 @@ public class UTF8FileReader {
 	 * @throws IOException
 	 */
 	private void reloadByteBuffer()throws IOException {
-		if(DEBUG) {
-			System.out.println("Byte buffer reload (file pos = "+filePos+"): ");
-		}
+		debug("Byte buffer reload (file pos = "+filePos+"): ");
 		hasNext = readBytes()>=0;
 		quoteScanResult.setScanned(false);
 	}
@@ -342,10 +348,8 @@ public class UTF8FileReader {
 				return curChar;
 			} else {
 				fillCharBufferUpToQuote();
-				if (DEBUG) {
-					System.out.println("GetNextChar char buffer load: " + new String(
-							Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
-				}
+				debug("GetNextChar char buffer load: " + new String(
+						Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
 			}
 		}
 		return curChar;
@@ -395,9 +399,7 @@ public class UTF8FileReader {
 		currentMode = MODE_READING_UTF8_CHARS;
 		stringReadingState.reset(StringReadingStateMachine.MODE_READ);
 		quoteScanResult.reset();
-		if (DEBUG) {
-			System.out.println("Initial char buffer load: ");
-		}
+		debug("Initial char buffer load: ");
 		fillCharBufferUpToQuote();
 		if (!charBuffer.hasRemaining()){
 			// if byte buffer was read (decoded) up to quote we do not need to
@@ -411,10 +413,8 @@ public class UTF8FileReader {
 				
 			}
 		}
-		if (DEBUG) {
-			System.out.println(charBuffer.limit() + " chars decoded: " + 
-					new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
-		}
+		debug(charBuffer.limit() + " chars decoded: "
+				+ new String(Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
 	}
 	protected boolean isReadingString(){
 		return currentMode == MODE_READING_UTF8_CHARS;
@@ -515,10 +515,8 @@ public class UTF8FileReader {
 		// we found the quote - jump directly to closing quote
 		filePos += quoteScanResult.getClosingQuotePos() - byteBuffer.position();
 		byteBuffer.position(quoteScanResult.getClosingQuotePos());
-		if (DEBUG) {
-			System.out.println("Jump to the closing quote pos: in file " + filePos + ", in byteBuffer "
-					+ quoteScanResult.getClosingQuotePos() + " (" + byteBuffer + ")");
-		}
+		debug("Jump to the closing quote pos: in file " + filePos + ", in byteBuffer "
+				+ quoteScanResult.getClosingQuotePos() + " (" + byteBuffer + ")");
 		// reset string reading state and closing quote scan result since we
 		// finished with this string
 		quoteScanResult.reset();
@@ -544,38 +542,34 @@ public class UTF8FileReader {
 	 *             quote
 	 */
 	private void fillCharBufferUpToQuote() throws IOException, IllegalFormatException{
-		if(DEBUG) System.out.println("Read chars up to quote from : "+ byteBuffer);
+		debug("Read chars up to quote from : "+ byteBuffer);
 		charBuffer.clear();
 //		boolean quoteReached = false;
 		while(true) {
 			int posBeforeDecoding = byteBuffer.position();
 //			int quotePos = 
 			if(!quoteScanResult.reachedClosingQuote()){
-				if (DEBUG) System.out.println("Scaning for closing quote starting from pos " + posBeforeDecoding + "...");
+				debug("Scaning for closing quote starting from pos " + posBeforeDecoding + "...");
 				searchForClosingQuoteInCurrentByteBuffer();
 			}
 //			int quotePos = quoteScanResult.getClosingQuotePos();
-			if(DEBUG){
-				if(quoteScanResult.reachedClosingQuote()){
-					System.out.println(" quote is at byte buffer pos " + quoteScanResult.getClosingQuotePos());
-				} else {
-					System.out.println(" no quote found.");
-				}
-			}
+			debug(quoteScanResult.reachedClosingQuote()?
+					" quote is at byte buffer pos " + quoteScanResult.getClosingQuotePos() : 
+						" no quote found.");
 			int byteOldLimit = byteBuffer.limit();
 			if(quoteScanResult.reachedClosingQuote()){
 				byteBuffer.limit(quoteScanResult.getClosingQuotePos());
 //				quoteReached = true;
 			}
 			CoderResult cr = decoder.decode(byteBuffer, charBuffer, quoteScanResult.reachedClosingQuote());
-			if (DEBUG) System.out.println("\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
+			debug("\tDecoded "+ (byteBuffer.position() - posBeforeDecoding)+" bytes");
 			// update file position based on the number of read and decoded bytes
 			filePos += (byteBuffer.position() - posBeforeDecoding); 
 			 // restore old byte array limit  
 			 byteBuffer.limit(byteOldLimit);
 			 
 			if (cr.isUnderflow()) {
-				if (DEBUG) System.out.println("\tUnderflow, closing quote pos = "+quoteScanResult.getClosingQuotePos() + ": "+byteBuffer);
+				debug("\tUnderflow, closing quote pos = "+quoteScanResult.getClosingQuotePos() + ": "+byteBuffer);
 				if (quoteScanResult.reachedClosingQuote()){
 					 break;
 				}
@@ -596,16 +590,15 @@ public class UTF8FileReader {
 				}
 				continue;
 			} else if (cr.isOverflow()) {
-				if (DEBUG) System.out.println("Overflow");
+				debug("Overflow");
 				break;
 			} else {
-//				 byteBuffer.limit(byteOldLimit);
-				 if (DEBUG) System.err.println("Character coding exception at file pos ~ "+filePos);
 				 cr.throwException();
 			}
 		}
 		 if (quoteScanResult.reachedClosingQuote()) {
-			 // reset decoder TODO: why? why only when the quote is reached?
+			 // reset decoder 
+			 // TODO: should I reset it only when closing quote is reached?
 			 decoder.reset();
 		 }
 		if (charBuffer.position() == 0 && !quoteScanResult.reachedClosingQuote()) {
