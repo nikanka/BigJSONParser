@@ -31,6 +31,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreePath;
 
+import com.bigjson.parser.IllegalFormatException;
 import com.bigjson.parser.JSONLoader;
 import com.bigjson.parser.JSONNode;
 
@@ -160,6 +161,9 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		}catch(IOException e){
 			showDialog("An IOException occured while reading new file: "+e.getMessage());
 			return;
+		}catch(IllegalFormatException e){
+			showDialog("An IllegalFormatException occured while parsing the file: "+e.getMessage());
+			return;
 		}
 		fileInfoField.setText(file.getName());
 		fileInfoField.setToolTipText(file.getAbsolutePath());
@@ -197,13 +201,15 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			}
 		} catch(IOException e){
 			showDialog("IOException occured while loading children nodes: " + e.getMessage());
+		}catch(IllegalFormatException e){
+			showDialog("IllegalFormatException occured while loading children nodes: " + e.getMessage());
 		}
 		//parent.setIsFullyLoaded(true);
 		loadTime = System.currentTimeMillis() - loadTime;
 		System.out.println("LoadTime for parent node " + parent + ": "+loadTime/1000 +" s");
 	}
 
-	private void loadChildrenForNode(JSONTreeNode parent) throws IOException{
+	private void loadChildrenForNode(JSONTreeNode parent) throws IOException, IllegalFormatException{
 		if(!parent.getAllowsChildren() || parent.childrenAreLoaded()){
 //			System.out.println("\t Node "+parent+" is not allower to have children or it's children are already loaded");
 			return;
@@ -324,10 +330,13 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 				node = backend.loadNodeWithFullString(node);
 				setUserObject(node);
 				treeModel.nodeChanged(this);
-			} catch (IOException ex) {
-				JOptionPane.showMessageDialog(null, "IOException occured while loading full string for "
-						+ getUserObject() + ": " + ex.getMessage());
+			} catch (IOException e) {
+				showDialog(
+						"IOException occured while loading full string for " + getUserObject() + ": " + e.getMessage());
 
+			} catch (IllegalFormatException e) {
+				showDialog("IllegalFormatException occured while loading full string for " + getUserObject() + ": "
+						+ e.getMessage());
 			}
 			return str;
 		}
