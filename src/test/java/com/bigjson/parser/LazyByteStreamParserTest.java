@@ -41,127 +41,6 @@ public class LazyByteStreamParserTest {
     public ExpectedException thrown = ExpectedException.none();
 
 
-	@Test
-	public void shouldParseSmallJSONFile() throws IOException, IllegalFormatException{
-		String fileName = "testFiles/SmallTest0.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest1.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest2.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest3.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-	}
-	
-	private void parseAndCompare(String fileName, int stringLenngth) throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, stringLenngth)){
-			// this parser vs...
-			JSONNode top = parser.parseTopLevel(null);
-			// org.json parser
-			byte[] bytes = Files.readAllBytes(Paths.get(fileName));
-			JSONObject topExp = new JSONObject(new String(bytes));
-			
-			verifyNode(topExp, parser, top, stringLenngth);
-		}
-	}
-	
-	/**
-	 * Verifies the type and value of the node. It is assumed that the name has been already verified.
-	 * @param nodeExp
-	 * @param parser
-	 * @param node
-	 */
-	private static void verifyNode(Object nodeExp, LazyByteStreamParser parser, JSONNode node, int stringLength)
-			throws IOException, IllegalFormatException {
-		debug("Verify "+ node.getName()+" : "+node.getValue());
-		switch(node.getType()){
-			case JSONNode.TYPE_ARRAY:
-				assertTrue(nodeExp instanceof JSONArray);
-				verifyArrayChildren((JSONArray)nodeExp, parser, node, stringLength);
-				break;
-			case JSONNode.TYPE_OBJECT:
-				assertTrue(nodeExp instanceof JSONObject); 
-				verifyObjectChildren((JSONObject)nodeExp, parser, node, stringLength);
-				break;
-			case JSONNode.TYPE_KEYWORD:
-				assertEquals(nodeExp.toString(), node.getValue());
-				break;
-			case JSONNode.TYPE_NUMBER:
-				try{
-					NumberFormat f = NumberFormat.getInstance(); 
-					assertEquals(f.parse(nodeExp.toString().toUpperCase()), 
-							f.parse(node.getValue().toUpperCase()));
-				} catch(ParseException e){
-					throw new RuntimeException(e);
-				}
-				break;
-			case JSONNode.TYPE_STRING:
-				String strExp = nodeExp.toString();
-				assertEquals(strExp.substring(0, Math.min(strExp.length(), stringLength)), node.getValue());
-				break;
-		}
-	}
-
-	/**
-	 * Verifies children of an object node: their number and names.
-	 * @param nodeExp
-	 * @param parser
-	 * @param node
-	 * @throws IOException
-	 */
-	private static void verifyObjectChildren(JSONObject nodeExp, LazyByteStreamParser parser, JSONNode node,
-			int stringLength) throws IOException, IllegalFormatException {
-		// load children dynamically
-		List<JSONNode> children = parser.loadChildrenAtPosition(node.getStartFilePosition());
-		// compare number of children
-		assertEquals(nodeExp.length(), children.size());
-		// compare each child
-		debug("Children of an Object:");
-		for(JSONNode child: children){
-			Object childExp = null;
-			try{
-				childExp = nodeExp.get(child.getName());
-			}catch(JSONException e){
-				e.printStackTrace();
-			}
-			// verify name
-			assertNotNull(childExp);
-			verifyNode(childExp, parser, child, stringLength);
-		}
-	}
-	
-	/**
-	 * Verifies children of an object node: their number and names.
-	 * @param nodeExp
-	 * @param parser
-	 * @param node
-	 * @throws IOException
-	 */
-	private static void verifyArrayChildren(JSONArray nodeExp, LazyByteStreamParser parser, JSONNode node,
-			int stringLength) throws IOException, IllegalFormatException {
-		// load children dynamically
-		List<JSONNode> children = parser.loadChildrenAtPosition(node.getStartFilePosition());
-		// compare number of children
-		assertEquals(nodeExp.length(), children.size());
-		// compare each child
-		debug("Children of an Array:");
-		for(int i = 0; i < children.size(); i++){
-			Object childExp = null;
-			try{
-				childExp = nodeExp.get(i);
-			}catch(JSONException e){
-				e.printStackTrace();
-			}
-			assertNotNull(childExp);
-			JSONNode child = children.get(i);
-			verifyNode(childExp, parser, child, stringLength);
-		}
-	}
-
 	
 	@Test
 	public void shouldReadStringWithEscapedQuoteAndSlash()throws IOException, IllegalFormatException {
@@ -311,7 +190,7 @@ public class LazyByteStreamParserTest {
 	@Test
 	public void shouldReadSingleString() throws IOException, IllegalFormatException{
 		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest4.json", -1)){
-			JSONNode root = parser.parseTopLevel(null);
+			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_STRING, root.getType());
 		}
@@ -319,7 +198,7 @@ public class LazyByteStreamParserTest {
 	@Test
 	public void shouldReadSingleKeyword() throws IOException, IllegalFormatException{
 		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest5.json", -1)){
-			JSONNode root = parser.parseTopLevel(null);
+			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_KEYWORD, root.getType());
 		}
@@ -327,7 +206,7 @@ public class LazyByteStreamParserTest {
 	@Test
 	public void shouldReadSingleNumber() throws IOException, IllegalFormatException{
 		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest6.json", -1)){
-			JSONNode root = parser.parseTopLevel(null);
+			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_NUMBER, root.getType());
 		}
@@ -337,7 +216,7 @@ public class LazyByteStreamParserTest {
 	public void shouldThrowAnExceptionIfSeveralRoots() throws IOException, IllegalFormatException{
 		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest7.json", -1)){
 			thrown.expect(IllegalFormatException.class);
-			parser.parseTopLevel(null);
+			parser.getRoot();
 		}
 	}
 

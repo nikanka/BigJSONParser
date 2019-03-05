@@ -8,11 +8,11 @@ public interface JSONNode {
 	public static final int TYPE_KEYWORD = 5;
 
 	/**
-	 * Create a copy of a given node with a new value
-	 * @param node
+	 * Create a copy of a node with a fully loaded value (isFullyLoaded becomes true)
 	 * @param newVal
+	 * @return a copy of a current node with new value and isFullyLoaded == true
 	 */
-	public JSONNode createNodeCopyWithNewValue(String newVal, boolean isFullyLoaded);
+	public JSONNode createNodeCopyWithFullyLoadedValue(String newVal);
 		
 	public int getType();
 	

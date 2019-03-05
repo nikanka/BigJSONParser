@@ -45,7 +45,8 @@ import com.bigjson.parser.JSONNode;
  */
 @SuppressWarnings("serial")
 public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
-	private static String loadFileStr = "Load tree from JSON file";
+	private static final String loadFileStr = "Load tree from JSON file";
+	private static final int stringDisplayLength = 100;
 	
 	private DefaultTreeModel treeModel;
 	private JSONLoader backend;
@@ -153,12 +154,16 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			}
 		}
 		try{
-			backend = new JSONLoader(file.getAbsolutePath());
+			backend = new JSONLoader(file.getAbsolutePath(), stringDisplayLength);
+			long t1 = System.currentTimeMillis();
 			JSONTreeNode rootNode = new JSONTreeNode(backend.getRoot());
+			System.out.println("Load root and children: "+(System.currentTimeMillis() - t1)/1000 + " s");
 			treeModel = new DefaultTreeModel(rootNode, true);
 			treeView = new JTree(treeModel);
 			treeView.collapseRow(0);
+			t1 = System.currentTimeMillis();
 			loadChildrenForNode(rootNode);
+			System.out.println("Load children for root: "+(System.currentTimeMillis() - t1)/1000 + " s");
 		}catch(IOException e){
 			showDialog("An IOException occured while reading new file: "+e.getMessage());
 			return;
@@ -207,7 +212,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		}
 		//parent.setIsFullyLoaded(true);
 		loadTime = System.currentTimeMillis() - loadTime;
-		System.out.println("LoadTime for parent node " + parent + ": "+loadTime/1000 +" s");
+		System.out.println("First-time expand node " + parent + ": "+loadTime/1000 +" s");
 	}
 
 	private void loadChildrenForNode(JSONTreeNode parent) throws IOException, IllegalFormatException{
@@ -215,8 +220,8 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 //			System.out.println("\t Node "+parent+" is not allower to have children or it's children are already loaded");
 			return;
 		}
-		//System.out.println("\tLoading children for "+parent +" :\n");
-		List<JSONNode> children = backend.loadChildren(parent.getJSONNode().getStartFilePosition());
+//		System.out.println("\tLoading children for "+parent +" :\n");
+		List<JSONNode> children = backend.loadChildren(parent.getJSONNode());
 		//treeModel.insertNodeInto(childNode, parent, parent.getChildCount());
 		for(JSONNode child: children){
 			//System.out.println("\t\t"+child.getName()+" : "+child.getValue());
