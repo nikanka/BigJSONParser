@@ -1,5 +1,6 @@
 package com.bigjson.parser;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
@@ -11,7 +12,7 @@ import java.util.List;
  * @author nikanka
  *
  */
-public class JSONLoader {
+public class JSONLoader implements Closeable {
 	private LazyByteStreamParser parser;
 	private JSONNode root;
 	private String fileName;
@@ -39,9 +40,11 @@ public class JSONLoader {
 		parser = new LazyByteStreamParser(fileName, 20);
 		root = parser.parseTopLevel(topLevelName);//TODO: should check format at this point
 	}
-	public void destroy() throws IOException{
-		parser.destroy();
+	@Override
+	public void close() throws IOException {
+		parser.close();
 	}
+	
 	public JSONNode getRoot(){
 		return root;
 	}
@@ -72,7 +75,6 @@ public class JSONLoader {
 	
 	public String loadFullString(long openingQuotePos, long closingQuotePos) throws IOException, IllegalFormatException{
 		return parser.loadStringAtPosition(openingQuotePos, closingQuotePos);
-	}
-	
+	}	
 
 }

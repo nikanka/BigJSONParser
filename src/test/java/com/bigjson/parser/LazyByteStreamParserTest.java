@@ -29,11 +29,11 @@ import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
 
 public class LazyByteStreamParserTest {
 	
-	private static boolean DEBUG = false;
+	private static boolean DEBUG = true;
 	
-	private static void printIfDebug(String toPrint){
+	private static void debug(String toPrint){
 		if(DEBUG){
-			System.out.println(toPrint);
+			System.out.println("TEST: " + toPrint);
 		}
 	}
 	
@@ -43,7 +43,10 @@ public class LazyByteStreamParserTest {
 
 	@Test
 	public void shouldParseSmallJSONFile() throws IOException, IllegalFormatException{
-		String fileName = "testFiles/SmallTest1.json";
+		String fileName = "testFiles/SmallTest0.json";
+		parseAndCompare(fileName, 10000);
+		parseAndCompare(fileName, 10);
+		fileName = "testFiles/SmallTest1.json";
 		parseAndCompare(fileName, 10000);
 		parseAndCompare(fileName, 10);
 		fileName = "testFiles/SmallTest2.json";
@@ -52,18 +55,18 @@ public class LazyByteStreamParserTest {
 		fileName = "testFiles/SmallTest3.json";
 		parseAndCompare(fileName, 10000);
 		parseAndCompare(fileName, 10);
-		
 	}
+	
 	private void parseAndCompare(String fileName, int stringLenngth) throws IOException, IllegalFormatException{
-		// this parser vs...
-		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, stringLenngth);
-		JSONNode top = parser.parseTopLevel(null);
-		
-		// org.json parser
-		byte[] bytes = Files.readAllBytes(Paths.get(fileName));
-		JSONObject topExp = new JSONObject(new String(bytes));
-		
-		verifyNode(topExp, parser, top, stringLenngth);	
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, stringLenngth)){
+			// this parser vs...
+			JSONNode top = parser.parseTopLevel(null);
+			// org.json parser
+			byte[] bytes = Files.readAllBytes(Paths.get(fileName));
+			JSONObject topExp = new JSONObject(new String(bytes));
+			
+			verifyNode(topExp, parser, top, stringLenngth);
+		}
 	}
 	
 	/**
@@ -74,7 +77,7 @@ public class LazyByteStreamParserTest {
 	 */
 	private static void verifyNode(Object nodeExp, LazyByteStreamParser parser, JSONNode node, int stringLength)
 			throws IOException, IllegalFormatException {
-		printIfDebug("Verify "+ node.getName()+" : "+node.getValue());
+		debug("Verify "+ node.getName()+" : "+node.getValue());
 		switch(node.getType()){
 			case JSONNode.TYPE_ARRAY:
 				assertTrue(nodeExp instanceof JSONArray);
@@ -84,7 +87,7 @@ public class LazyByteStreamParserTest {
 				assertTrue(nodeExp instanceof JSONObject); 
 				verifyObjectChildren((JSONObject)nodeExp, parser, node, stringLength);
 				break;
-			case JSONNode.TYPE_KEYWORD://TODO: handle null value
+			case JSONNode.TYPE_KEYWORD:
 				assertEquals(nodeExp.toString(), node.getValue());
 				break;
 			case JSONNode.TYPE_NUMBER:
@@ -117,7 +120,7 @@ public class LazyByteStreamParserTest {
 		// compare number of children
 		assertEquals(nodeExp.length(), children.size());
 		// compare each child
-		printIfDebug("Children of an Object:");
+		debug("Children of an Object:");
 		for(JSONNode child: children){
 			Object childExp = null;
 			try{
@@ -145,7 +148,7 @@ public class LazyByteStreamParserTest {
 		// compare number of children
 		assertEquals(nodeExp.length(), children.size());
 		// compare each child
-		printIfDebug("Children of an Array:");
+		debug("Children of an Array:");
 		for(int i = 0; i < children.size(); i++){
 			Object childExp = null;
 			try{
@@ -304,48 +307,93 @@ public class LazyByteStreamParserTest {
 		fw.close();
 		checkAllStringsFromFile(fileName, -1, strings);
 	}
+	
+	@Test
+	public void shouldReadSingleString() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest4.json", -1)){
+			JSONNode root = parser.parseTopLevel(null);
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_STRING, root.getType());
+		}
+	}
+	@Test
+	public void shouldReadSingleKeyword() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest5.json", -1)){
+			JSONNode root = parser.parseTopLevel(null);
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_KEYWORD, root.getType());
+		}
+	}
+	@Test
+	public void shouldReadSingleNumber() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest6.json", -1)){
+			JSONNode root = parser.parseTopLevel(null);
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_NUMBER, root.getType());
+		}
+	}
+	
+	@Test
+	public void shouldThrowAnExceptionIfSeveralRoots() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest7.json", -1)){
+			thrown.expect(IllegalFormatException.class);
+			parser.parseTopLevel(null);
+		}
+	}
 
 	@Test
-	public void shouldNotReadOutsideOfFile() throws IOException, IllegalFormatException{
+	public void shouldNotReadOutsideOfFilePosRange() throws IOException, IllegalFormatException{
 		String fileName = UTF8FileReaderTest.getGeneratedFileName();
 		FileWriter fw = new FileWriter(fileName);
 		fw.write("a");
 		fw.close();
-		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1);
-		thrown.expect(IOException.class);
-		parser.loadStringAtPosition(2, 3);
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1)){
+			thrown.expect(IllegalArgumentException.class);
+			parser.loadStringAtPosition(2, 3);
+		}
 	}
-	
+
+	@Test
+	public void shouldNotReadAtNegativePos() throws IOException, IllegalFormatException{
+		String fileName = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(fileName);
+		fw.write("a");
+		fw.close();
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1)){
+			thrown.expect(IllegalArgumentException.class);
+			parser.loadStringAtPosition(-1, 1);
+		}
+	}
 
 	private void checkAllStringsFromFile(String fileName, int strMaxLen, List<String> expected)
 			throws IOException, IllegalFormatException {
-		LazyByteStreamParser parser = new LazyByteStreamParser(fileName, strMaxLen);
 		List<StringWithCoords> resultWithCoords = new ArrayList<StringWithCoords>();
 		// find all strings
-		printIfDebug("TEST: find all strings with in the file");
-		while(parser.hasNext()){
-			parser.moveToNextByte();
-			// we suppose that backslash means nothing outside of a string 
-			// and that it cannot be seen outside of a  string in a real correct JSON file
-			if(parser.getCurByte() == '"'){
-				StringWithCoords str = parser.parseString(strMaxLen >= 0);
-				resultWithCoords.add(str);
-				printIfDebug("TEST: Parsed String: '"+str.getString()+"'");
+		debug("find all strings with in the file");
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, strMaxLen)){
+			while(parser.hasNext()){
+				parser.moveToNextByte();
+				// we suppose that backslash means nothing outside of a string 
+				// and that it cannot be seen outside of a  string in a real correct JSON file
+				if(parser.getCurByte() == '"'){
+					StringWithCoords str = parser.parseString(strMaxLen >= 0);
+					resultWithCoords.add(str);
+					debug("Parsed String: '"+str.getString()+"'");
+				}
 			}
-		}
-		assertEquals(expected.size(), resultWithCoords.size());
-		// load Strings by coords
-		printIfDebug("TEST: load all strings by coodrs");
-		for(int i = 0; i < expected.size(); i++){
-			StringWithCoords str = resultWithCoords.get(i);
-			String exp = expected.get(i);
-			if(strMaxLen >= 0){
-				assertEquals(exp.substring(0, Math.min(exp.length(), strMaxLen)), str.getString());
+			assertEquals(expected.size(), resultWithCoords.size());
+			// load Strings by coords
+			debug("load all strings by coodrs");
+			for(int i = 0; i < expected.size(); i++){
+				StringWithCoords str = resultWithCoords.get(i);
+				String exp = expected.get(i);
+				if(strMaxLen >= 0){
+					assertEquals(exp.substring(0, Math.min(exp.length(), strMaxLen)), str.getString());
+				}
+				String s = parser.loadStringAtPosition(str.getOpeningQuotePos(), str.getClosingQuotePos());
+				debug("Parsed String: '"+s+"'");
+				assertEquals(exp, s);
 			}
-			String s = parser.loadStringAtPosition(str.getOpeningQuotePos(), str.getClosingQuotePos());
-			printIfDebug("TEST: Parsed String: '"+s+"'");
-			assertEquals(exp, s);
 		}
 	}
-	
 }
