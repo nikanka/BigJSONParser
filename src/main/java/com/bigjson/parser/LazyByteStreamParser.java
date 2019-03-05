@@ -481,6 +481,7 @@ public class LazyByteStreamParser implements Closeable{
 		if(curByte != '"'){
 			throwIllegalFormatExceptionWithFilePos("String does not start with '\"'");
 		}
+		
 		long openingQuotePos = reader.getFilePosition() - 1;// since we've already read an opening quote
 		StringBuilder sb = new StringBuilder();
 		// if string is not empty - read it
