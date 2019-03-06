@@ -1,6 +1,7 @@
 package com.bigjson.parser;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -14,18 +15,15 @@ import java.util.List;
  */
 public class JSONLoader implements Closeable {
 	private LazyByteStreamParser parser;
-//	private JSONNode root;
-//	private List<JSONNode> rootChildren;
-	private String fileName;
 	
-	public JSONLoader(String fileName, int stringDisplayLimit) throws IOException, IllegalFormatException{
-		this(fileName, null, stringDisplayLimit);
+	public JSONLoader(File file, int stringDisplayLimit) throws IOException, IllegalFormatException{
+		this(file, null, stringDisplayLimit);
 	}
 	
 	/**
 	 * Creates a loader for a given JSON file.
 	 * 
-	 * @param fileName
+	 * @param file
 	 * @param topLevelName
 	 *            what name should be given (for display purposes) to the
 	 *            top-level node. If topLevelName == null, the default name
@@ -40,9 +38,8 @@ public class JSONLoader implements Closeable {
 	 * @throws IllegalFormatException
 	 *             if the format of the data is not as expected
 	 */
-	public JSONLoader(String fileName, String topLevelName, int stringDisplayLimit) throws IOException, IllegalFormatException{
-		this.fileName = fileName;
-		parser = new LazyByteStreamParser(fileName, topLevelName, stringDisplayLimit);
+	public JSONLoader(File file, String topLevelName, int stringDisplayLimit) throws IOException, IllegalFormatException{
+		parser = new LazyByteStreamParser(file, topLevelName, stringDisplayLimit);
 //		long t1 = System.currentTimeMillis();
 //		root = parser.getRoot();
 //		System.out.println("LoadTime for the root: "+(System.currentTimeMillis() - t1)/1000 + " s");
@@ -56,8 +53,8 @@ public class JSONLoader implements Closeable {
 		return parser.getRoot();
 	}
 	
-	public String getFileName(){
-		return fileName;
+	public File getFile(){
+		return parser.getFile();
 	}
 		
 //	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{

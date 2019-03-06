@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -43,7 +44,7 @@ public class JSONLoaderTest {
 	}
 	
 	private void parseAndCompare(String fileName, int stringLenngth) throws IOException, IllegalFormatException{
-		try(JSONLoader loader = new JSONLoader(fileName, stringLenngth)){
+		try(JSONLoader loader = new JSONLoader(new File(fileName), stringLenngth)){
 			// this parser vs...
 			JSONNode top = loader.getRoot();
 			// org.json parser

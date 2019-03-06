@@ -154,14 +154,12 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			}
 		}
 		try{
-			backend = new JSONLoader(file.getAbsolutePath(), stringDisplayLength);
+			backend = new JSONLoader(file, stringDisplayLength);
 			long t1 = System.currentTimeMillis();
 			JSONTreeNode rootNode = new JSONTreeNode(backend.getRoot());
 			System.out.println("Load root and children: "+(System.currentTimeMillis() - t1)/1000 + " s");
-			treeModel = new DefaultTreeModel(rootNode, true);
-			treeView = new JTree(treeModel);
-			treeView.collapseRow(0);
-			t1 = System.currentTimeMillis();
+//			treeModel = new DefaultTreeModel(rootNode, true);
+			initTreeModel(rootNode);
 			loadChildrenForNode(rootNode);
 			System.out.println("Load children for root: "+(System.currentTimeMillis() - t1)/1000 + " s");
 		}catch(IOException e){

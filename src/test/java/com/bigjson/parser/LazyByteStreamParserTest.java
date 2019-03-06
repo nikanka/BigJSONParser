@@ -2,6 +2,7 @@ package com.bigjson.parser;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -45,8 +46,8 @@ public class LazyByteStreamParserTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAndSlash()throws IOException, IllegalFormatException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		String str1 = "aa";
 		String str2 = "\"bbb";
 		// in file: aa\\\"bbb
@@ -55,15 +56,15 @@ public class LazyByteStreamParserTest {
 		List<String> strings = new ArrayList<String>();
 		// should parse into 'aa\"bbb'
 		strings.add(str1+"\\"+str2);
-		checkAllStringsFromFile(fileName, -1, strings);
-		checkAllStringsFromFile(fileName, 3, strings);
+		checkAllStringsFromFile(file, -1, strings);
+		checkAllStringsFromFile(file, 3, strings);
 
 	}
 	
 	@Test
 	public void shouldReadNonAsciStrings()throws IOException, IllegalFormatException{
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), 
 				Charset.forName("UTF-8").newEncoder());
 		List<String> strings = new ArrayList<String>();
 		// string in Russian
@@ -76,13 +77,13 @@ public class LazyByteStreamParserTest {
 		strings.add("投ネノ対仲講ーしさ  た米掲ルヌセ解更みフ まけ疎断 でさぽざ  \"宗度年テ参授ラ設50多海こざび語記");
 		writer.write("String in Japan: \"投ネノ対仲講ーしさ  た米掲ルヌセ解更みフ まけ疎断 でさぽざ  \\\"宗度年テ参授ラ設50多海こざび語記\".");
 		writer.close();
-		checkAllStringsFromFile(fileName, -1, strings);
-		checkAllStringsFromFile(fileName, 10, strings);		
+		checkAllStringsFromFile(file, -1, strings);
+		checkAllStringsFromFile(file, 10, strings);		
 	}
 	@Test
 	public void shouldReadEmplyAndLongStrings()throws IOException, IllegalFormatException{
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(fileName), 
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), 
 				Charset.forName("UTF-8").newEncoder());
 		List<String> strings = new ArrayList<String>();
 		// Empty string
@@ -95,16 +96,16 @@ public class LazyByteStreamParserTest {
 			writer.write("String #"+i+" = \""+strings.get(i)+"\"; ");		
 		}
 		writer.close();
-		checkAllStringsFromFile(fileName, -1, strings);		
-		checkAllStringsFromFile(fileName, 10, strings);		
+		checkAllStringsFromFile(file, -1, strings);		
+		checkAllStringsFromFile(file, 10, strings);		
 	}
 
 	
 	@Test
 	public void shouldReadStringWithQuoteAtByteBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
 		Arrays.fill(prefix, 's');
 		String str = new String(prefix);
@@ -114,13 +115,13 @@ public class LazyByteStreamParserTest {
 		fw.close();
 		List<String> strings = new ArrayList<String>();
 		strings.add(str);
-		checkAllStringsFromFile(fileName, 5, strings);
+		checkAllStringsFromFile(file, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithQuoteAtCharBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.bufferSize];
 		Arrays.fill(prefix, 's');
 		String str = new String(prefix);
@@ -130,13 +131,13 @@ public class LazyByteStreamParserTest {
 		fw.close();
 		List<String> strings = new ArrayList<String>();
 		strings.add(str);
-		checkAllStringsFromFile(fileName, 5, strings);
+		checkAllStringsFromFile(file, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtByteBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.bufferSize-2];
 		
 		Arrays.fill(prefix, 's');
@@ -148,14 +149,14 @@ public class LazyByteStreamParserTest {
 		str = str + "\"StringEnd";
 		List<String> strings = new ArrayList<String>();
 		strings.add(str);
-		checkAllStringsFromFile(fileName, -1, strings);
-		checkAllStringsFromFile(fileName, 10, strings);
+		checkAllStringsFromFile(file, -1, strings);
+		checkAllStringsFromFile(file, 10, strings);
 	}
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtCharBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.bufferSize-1];
 		Arrays.fill(prefix, 's');
 		String str = new String(prefix);
@@ -166,13 +167,13 @@ public class LazyByteStreamParserTest {
 		str = str + "\"StringEnd";
 		List<String> strings = new ArrayList<String>();
 		strings.add(str);
-		checkAllStringsFromFile(fileName, -1, strings);
-		checkAllStringsFromFile(fileName, 5, strings);
+		checkAllStringsFromFile(file, -1, strings);
+		checkAllStringsFromFile(file, 5, strings);
 	}
 	@Test
 	public void shouldReadStringWithEscapedBackslashAndQuotes()throws IOException, IllegalFormatException{
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		List<String> strings = new ArrayList<String>();
 		// will be ..."aaa\\aaa"... in file -> should read as 'aaa\aaa'
 		fw.write("string with one backslash: \"aaa\\\\aaa\"; ");
@@ -184,12 +185,12 @@ public class LazyByteStreamParserTest {
 		fw.write("string with backslash and quote: \"bbb\\\\\\\"string continues\""); 
 		strings.add("bbb\\\"string continues");
 		fw.close();
-		checkAllStringsFromFile(fileName, -1, strings);
+		checkAllStringsFromFile(file, -1, strings);
 	}
 	
 	@Test
 	public void shouldReadSingleString() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest4.json", -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(new File("testFiles/SmallTest4.json"), -1)){
 			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_STRING, root.getType());
@@ -197,7 +198,7 @@ public class LazyByteStreamParserTest {
 	}
 	@Test
 	public void shouldReadSingleKeyword() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest5.json", -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(new File("testFiles/SmallTest5.json"), -1)){
 			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_KEYWORD, root.getType());
@@ -205,7 +206,7 @@ public class LazyByteStreamParserTest {
 	}
 	@Test
 	public void shouldReadSingleNumber() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest6.json", -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(new File("testFiles/SmallTest6.json"), -1)){
 			JSONNode root = parser.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_NUMBER, root.getType());
@@ -214,7 +215,7 @@ public class LazyByteStreamParserTest {
 	
 	@Test
 	public void shouldThrowAnExceptionIfSeveralRoots() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser("testFiles/SmallTest7.json", -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(new File("testFiles/SmallTest7.json"), -1)){
 			thrown.expect(IllegalFormatException.class);
 			parser.getRoot();
 		}
@@ -222,11 +223,11 @@ public class LazyByteStreamParserTest {
 
 	@Test
 	public void shouldNotReadOutsideOfFilePosRange() throws IOException, IllegalFormatException{
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		fw.write("a");
 		fw.close();
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, -1)){
 			thrown.expect(IllegalArgumentException.class);
 			parser.loadStringAtPosition(2, 3);
 		}
@@ -234,22 +235,22 @@ public class LazyByteStreamParserTest {
 
 	@Test
 	public void shouldNotReadAtNegativePos() throws IOException, IllegalFormatException{
-		String fileName = UTF8FileReaderTest.getGeneratedFileName();
-		FileWriter fw = new FileWriter(fileName);
+		File file = UTF8FileReaderTest.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
 		fw.write("a");
 		fw.close();
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, -1)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, -1)){
 			thrown.expect(IllegalArgumentException.class);
 			parser.loadStringAtPosition(-1, 1);
 		}
 	}
 
-	private void checkAllStringsFromFile(String fileName, int strMaxLen, List<String> expected)
+	private void checkAllStringsFromFile(File file, int strMaxLen, List<String> expected)
 			throws IOException, IllegalFormatException {
 		List<StringWithCoords> resultWithCoords = new ArrayList<StringWithCoords>();
 		// find all strings
 		debug("find all strings with in the file");
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(fileName, strMaxLen)){
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, strMaxLen)){
 			while(parser.hasNext()){
 				parser.moveToNextByte();
 				// we suppose that backslash means nothing outside of a string 

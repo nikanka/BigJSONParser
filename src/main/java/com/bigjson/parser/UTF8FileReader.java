@@ -1,6 +1,7 @@
 package com.bigjson.parser;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -21,7 +22,8 @@ public class UTF8FileReader implements Closeable{
 	private boolean DEBUG = false;
 	
 	private long filePos = 0;
-	private String fileName;
+//	private String fileName;
+	private File file;
 	private FileInputStream input;
 	private FileChannel fileChannel;
 	private ByteBuffer byteBuffer;
@@ -36,14 +38,14 @@ public class UTF8FileReader implements Closeable{
 	/**
 	 * Creates a reader for a given file
 	 * 
-	 * @param fileName
+	 * @param file
 	 * @throws IOException
 	 *             if file is not found or empty or if an I/O error occurs while
 	 *             reading bytes from the file
 	 */
-	public UTF8FileReader(String fileName) throws IOException {
-		this.fileName = fileName;
-		input = new FileInputStream(fileName);
+	public UTF8FileReader(File file) throws IOException {
+		this.file = file;
+		input = new FileInputStream(file);
 		fileChannel = input.getChannel();
 		charBuffer = CharBuffer.allocate(bufferSize);
 		byteBuffer = ByteBuffer.allocate(bufferSize);
@@ -51,14 +53,10 @@ public class UTF8FileReader implements Closeable{
 		charBuffer.flip();
 		hasNext = readBytes() >= 0;
 		if(!hasNext){
-			throw new IOException("It looks like file " + fileName + " is empty");
+			throw new IOException("It looks like file " + file.getPath() + " is empty");
 		}
 	}
-	
-//	void closeFileInputStream() throws IOException{
-//		input.close();
-//	}
-	
+		
 	public int getReadingMode(){
 		return currentMode;
 	}
@@ -78,8 +76,11 @@ public class UTF8FileReader implements Closeable{
 		return filePos;
 	}
 	
-	public String getFileName(){
-		return fileName;
+	/**
+	 * Return file that is being read by this reader
+	 */
+	public File getFile(){
+		return file;
 	}
 	
 	@Override
@@ -179,7 +180,8 @@ public class UTF8FileReader implements Closeable{
 	 */
 	protected byte getNextByte() throws IOException, IllegalFormatException{
 		if(!hasNext()){
-			throw new IllegalFormatException("Unexpected end of stream at pos " + filePos + " of file " + fileName);
+			throw new IllegalFormatException(
+					"Unexpected end of stream at pos " + filePos + " of file " + file.getPath());
 		}
 		if(currentMode != MODE_READING_ASCII_CHARS){
 			throw new RuntimeException("Cannot read bytes in current mode: "+currentMode);
@@ -205,7 +207,7 @@ public class UTF8FileReader implements Closeable{
 	 */
 	protected byte peekNextByte() throws IllegalFormatException{
 		if(!hasNext()){
-			throw new IllegalFormatException("Unexpected end of file at pos " + filePos + " of file " + fileName);
+			throw new IllegalFormatException("Unexpected end of file at pos " + filePos + " of file " + file.getPath());
 		}
 		if(currentMode != MODE_READING_ASCII_CHARS){
 			throw new RuntimeException("Cannot read bytes in current mode: "+currentMode);

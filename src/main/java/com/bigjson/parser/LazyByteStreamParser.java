@@ -1,6 +1,7 @@
 package com.bigjson.parser;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +45,7 @@ public class LazyByteStreamParser implements Closeable{
 	/**
 	 * Create a parser for a given file.
 	 * 
-	 * @param fileName
+	 * @param file
 	 * @param topLevelName
 	 *            the name of the top level (root). If null, a default name ("JSON")
 	 *            will be used instead
@@ -55,8 +56,8 @@ public class LazyByteStreamParser implements Closeable{
 	 *             if file is not found or empty or if an I/O error occurs while
 	 *             reading bytes from the file
 	 */
-	protected LazyByteStreamParser(String fileName, String topLevelName, int stringDisplayLength) throws IOException{
-		this(fileName, stringDisplayLength);
+	protected LazyByteStreamParser(File file, String topLevelName, int stringDisplayLength) throws IOException{
+		this(file, stringDisplayLength);
 		if(topLevelName != null){
 			this.topLevelName = topLevelName;
 		}
@@ -64,7 +65,7 @@ public class LazyByteStreamParser implements Closeable{
 	/**
 	 * Create a parser for a given file. The root name is set to default ("JSON").
 	 * 
-	 * @param fileName
+	 * @param file
 	 * @param stringDisplayLength
 	 *            how many first characters of a string to view. If
 	 *            stringDisplayLimit < 0 full strings are loaded
@@ -72,8 +73,8 @@ public class LazyByteStreamParser implements Closeable{
 	 *             if file is not found or empty or if an I/O error occurs while
 	 *             reading bytes from the file
 	 */
-	protected LazyByteStreamParser(String fileName, int stringDisplayLength) throws IOException{
-		reader = new UTF8FileReader(fileName);
+	protected LazyByteStreamParser(File file, int stringDisplayLength) throws IOException{
+		reader = new UTF8FileReader(file);
 		this.stringDisplayLength = stringDisplayLength;
 	}
 	
@@ -82,6 +83,13 @@ public class LazyByteStreamParser implements Closeable{
 		reader.close();
 	}
 	
+	/**
+	 * Return file that is being parsed by this parser
+	 */
+	public File getFile() {
+		return reader.getFile();
+	}
+
 	/**
 	 * Load a root node if it is not already loaded.
 	 * @return root (top-level node) of a JSON tree
@@ -520,7 +528,7 @@ public class LazyByteStreamParser implements Closeable{
 	
 	private void throwIllegalFormatExceptionWithFilePos(String msg) throws IllegalFormatException{
 		throw new IllegalFormatException(
-				msg + "' at " + (reader.getFilePosition() - 1) + " of file " + reader.getFileName() + ")");
+				msg + "' at " + (reader.getFilePosition() - 1) + " of file " + reader.getFile().getPath() + ")");
 	}
 	
 	private void debug(String msg){
@@ -561,6 +569,13 @@ public class LazyByteStreamParser implements Closeable{
 				// prepare reader for reading a string
 				reader.prepareForReadingAString();
 				while(reader.isReadingString()){		
+					/* TODO: I know that sb.length() can be bigger than code
+					 * point count (String.codePointCount()) as a result the
+					 * number of read symbols can be smaller than
+					 * stringDisplayLength even if sb.length() ==
+					 * stringDisplayLength. But its a rare case, so we'll keep it
+					 * simple for now
+					 */
 					if(lazy && sb.length() >= stringDisplayLength){
 						// if we are here, we stopped reading but did not reach the closing quote 
 						// (due to lazy reading), so skip the rest of the string and read the closing quote
