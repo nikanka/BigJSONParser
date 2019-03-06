@@ -13,7 +13,6 @@ public class JSONNonTreeNode implements JSONNode{
 	private int type;
 	private String value;
 	private String name;
-	//private String nodeString;
 	private long startPos;
 	private long endPos;
 	private boolean isFullyLoaded = true;
@@ -52,33 +51,15 @@ public class JSONNonTreeNode implements JSONNode{
 
 	/**
 	 * Create a copy of a given node with a new value
-	 * @param node
 	 * @param newVal
+	 * @param node
 	 */
-	public JSONNode createNodeCopyWithNewValue(String newVal, boolean isFullyLoaded) {
-		JSONNonTreeNode ret = new JSONNonTreeNode(getType(), getName(), isFullyLoaded, newVal);
+	public JSONNode createNodeCopyWithFullyLoadedValue(String newVal) {
+		JSONNonTreeNode ret = new JSONNonTreeNode(getType(), getName(), true, newVal);
 		ret.startPos = this.startPos;
 		ret.endPos = this.endPos;
 		return ret;
 	}
-//	private String createNodeString(){
-//		if(getType() == JSONNode.TYPE_ARRAY){
-//			return "[]" + getName()!=null?getName():"";
-//		}
-//		if(getType() == JSONNode.TYPE_OBJECT){
-//			return "{}" + getName()!=null?getName():"";
-//		} 
-//		String ret = getName()!=null?(getName()+" : "):"";
-//		if(getType() == JSONNode.TYPE_NUMBER || getType() == JSONNode.TYPE_KEYWORD){
-//			return ret + getValue();
-//		}
-//		if(getType() == JSONNode.TYPE_STRING){
-//			return ret + "\""+getValue() + (isFullyLoaded()?"":"...") + "\"";
-//		}
-//		assert false: getType();
-//		return null;
-//	}
-
 		
 	public long getStartFilePosition(){
 		return startPos;
@@ -87,10 +68,6 @@ public class JSONNonTreeNode implements JSONNode{
 	public long getEndFilePosition(){
 		return endPos;
 	}
-	
-//	public String getNodeString(){
-//		return nodeString;
-//	}
 	
 	protected void setStartFilePosition(long pos){
 		this.startPos = pos;
@@ -108,10 +85,6 @@ public class JSONNonTreeNode implements JSONNode{
 		return getType() != JSONNode.TYPE_ARRAY && getType() != JSONNode.TYPE_OBJECT;
 	}
 	
-//	protected void setIsFullyLoaded(boolean isFullyLoaded){
-//		this.isFullyLoaded = isFullyLoaded;
-//	}
-	
 	public int getType(){
 		return type;
 	}
@@ -122,52 +95,4 @@ public class JSONNonTreeNode implements JSONNode{
 	public String getValue() {
 		return value;
 	}
-//	private void setValue(String value) {
-//		this.value = value;
-//		//this.nodeString = createNodeString();
-//	}
-	 
-//	/////// TreeNode methods ///////////////////////
-//	@Override
-//	public TreeNode getChildAt(int childIndex) {
-//		if(childIndex < 0 || childIndex >= children.size()){
-//			throw new IndexOutOfBoundsException("Asks for child #"+ childIndex +
-//					" (have "+children.size()+" children)");
-//		}
-//		return children.get(childIndex);
-//	}
-//	@Override
-//	public int getChildCount() {
-//		return children.size();
-//	}
-//	@Override
-//	public TreeNode getParent() {
-//		return parent;
-//	}
-//	@Override
-//	public int getIndex(TreeNode node) {
-//		if(node == null) {
-//			return -1;
-//		}
-//		for(int i = 0; i < children.size(); i++){
-//			if(node.equals(children.get(i))){
-//				return i;
-//			}
-//		}
-//		return -1;
-//	}
-//	@Override
-//	public boolean getAllowsChildren() {
-//		return type == TYPE_ARRAY || type == TYPE_OBJECT;
-//	}
-//	@Override
-//	public boolean isLeaf() {
-//		return children.size() == 0;
-//	}
-//	@Override
-//	public Enumeration children() {
-//		return Collections.enumeration(children);
-//	}
-//	/////// End of TreeNode methods ///////////////////////
-
 }
