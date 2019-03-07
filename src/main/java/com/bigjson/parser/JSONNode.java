@@ -22,6 +22,8 @@ public interface JSONNode {
 
 	public long getStartFilePosition();
 	
+	public long getValueFilePosition();
+	
 	public long getEndFilePosition();
 
 	public boolean isFullyLoaded();

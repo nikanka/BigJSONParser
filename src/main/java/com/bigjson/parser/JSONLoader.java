@@ -56,7 +56,6 @@ public class JSONLoader implements Closeable {
 	public File getFile(){
 		return parser.getFile();
 	}
-		
 //	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{
 //		return parser.loadChildrenAtPosition(pos);
 //	}
@@ -76,7 +75,7 @@ public class JSONLoader implements Closeable {
 		if(node.getStartFilePosition() == getRoot().getStartFilePosition()){
 			return parser.getRootChildren();
 		}
-		return parser.loadChildrenAtPosition(node.getStartFilePosition());
+		return parser.loadChildrenAtPosition(node.getValueFilePosition());
 	}
 	/**
 	 * Return new JSONNode object which is the same as <code>node</code>
@@ -85,7 +84,7 @@ public class JSONLoader implements Closeable {
 	 * @return
 	 */
 	public JSONNode loadNodeWithFullString(JSONNode node) throws IOException, IllegalFormatException{
-		String str = loadFullString(node.getStartFilePosition(), node.getEndFilePosition());
+		String str = loadFullString(node.getValueFilePosition(), node.getEndFilePosition());
 		return node.createNodeCopyWithFullyLoadedValue(str);
 	}
 	

@@ -144,7 +144,7 @@ public class LazyByteStreamParser implements Closeable{
 		moveToNextNonspaceByte();
 		if(curByte != '{' && curByte != '['){
 			// this root is not allowed to have children
-			root = parseValue(topLevelName);
+			root = parseValue(topLevelName, reader.getFilePosition() - 1);
 		} else {
 			long startPos = reader.getFilePosition() - 1; // -1 because we've already read opening bracket
 			if(curByte == '{'){
@@ -155,6 +155,7 @@ public class LazyByteStreamParser implements Closeable{
 				rootChildren = parseArray();
 			}
 			((JSONNonTreeNode)root).setStartFilePosition(startPos);
+			((JSONNonTreeNode)root).setValueFilePosition(startPos);
 			((JSONNonTreeNode)root).setEndFilePosition(reader.getFilePosition() - 1);
 		}
 		debug("Done with parseTopLevel: "+reader.getFilePosition()+", '"+byteToChar(curByte)+"'");
@@ -262,7 +263,7 @@ public class LazyByteStreamParser implements Closeable{
 		List<JSONNode> nodeList = new ArrayList<JSONNode>();
 		moveToNextNonspaceByte();
 		while(curByte != ']'){
-			JSONNode child = parseValue(""+nodeList.size());
+			JSONNode child = parseValue(""+nodeList.size(), reader.getFilePosition() - 1);
 			nodeList.add(child);
 			moveToNextNonspaceByte();
 			if(curByte == ']'){
@@ -385,10 +386,11 @@ public class LazyByteStreamParser implements Closeable{
 	private JSONNode parseNameValuePair()throws IOException, IllegalFormatException{
 		debug("Entered parseNameValuePair at pos " + reader.getFilePosition());
 		String name = null;
+		long startPos = reader.getFilePosition() - 1;
 		try{
 			name = parseString(false).getString();
-		}catch(IOException e){
-			throw new IOException(e.getMessage()+" while parsing name in a name-value pair");
+		}catch(IllegalFormatException e){
+			throwIllegalFormatExceptionWithFilePos(e.getMessage()+" while parsing name in a name-value pair");
 		}
 		moveToNextNonspaceByte();
 		if(curByte != ':'){
@@ -396,7 +398,7 @@ public class LazyByteStreamParser implements Closeable{
 					+ "name and value in an object");
 		}
 		moveToNextNonspaceByte();
-		JSONNode ret = parseValue(name);
+		JSONNode ret = parseValue(name, startPos);
 		debug("Done with parseNameValuePair: next pos = " + reader.getFilePosition() + ", last read byte = '"
 				+ (char) curByte + "'");
 		return ret;
@@ -418,13 +420,13 @@ public class LazyByteStreamParser implements Closeable{
 	 *             non-ASCII symbol is met outside of a string or if the value
 	 *             does not match the format
 	 */
-	private JSONNode parseValue(String name) throws IOException, IllegalFormatException{
+	private JSONNode parseValue(String name, long startPos) throws IOException, IllegalFormatException{
 		debug("Entered parseValue ('" + name + "'): " + (reader.getFilePosition() - 1));
 		if(curByteIsWhitespace()){
 			throw new RuntimeException("Current byte should be the first non-space byte of the value to parse");
 		}
 		JSONNonTreeNode ret = null;	
-		long startPos = reader.getFilePosition() - 1;// -1 since we've already read the first byte of the value
+		long valuePos = reader.getFilePosition() - 1;// -1 since we've already read the first byte of the value
 		if(curByte == '{'){
 			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			moveToTheEndOfToken((byte)'{', (byte)'}');
@@ -444,6 +446,7 @@ public class LazyByteStreamParser implements Closeable{
 				ret = parseNumber(name);
 		} 
 		ret.setStartFilePosition(startPos);
+		ret.setValueFilePosition(valuePos);
 		ret.setEndFilePosition(reader.getFilePosition()-1);// -1 since we've already read the last byte
 		debug("Done with parseValue ('" + name + "'): "+reader.getFilePosition()+", '"+(char)curByte+"'");
 		return ret;
@@ -624,7 +627,7 @@ public class LazyByteStreamParser implements Closeable{
 	}
 
 	/**
-	 * Moves the cursor to the next non-space byte. Should be use outside of
+	 * Moves the cursor to the next non-space byte. Should be used outside of
 	 * strings only! Does not check if there are characters left to be read from
 	 * file.
 	 * 
