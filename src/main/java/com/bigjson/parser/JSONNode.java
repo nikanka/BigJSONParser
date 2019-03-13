@@ -24,6 +24,11 @@ public interface JSONNode {
 	
 	public long getValueFilePosition();
 	
+	/**
+	 * @return file position of the last byte of this node (a quote for strings,
+	 *         a closing bracket for objects and arrays, last symbols for
+	 *         keywords and numbers)
+	 */
 	public long getEndFilePosition();
 
 	public boolean isFullyLoaded();

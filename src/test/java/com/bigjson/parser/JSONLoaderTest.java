@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.List;
@@ -15,11 +14,16 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class JSONLoaderTest {
 
-	private static boolean DEBUG = true;
+	private static boolean DEBUG = false;
+	
+	@Rule
+    public ExpectedException thrown = ExpectedException.none();
 	
 	private static void debug(String toPrint){
 		if(DEBUG){
@@ -29,28 +33,60 @@ public class JSONLoaderTest {
 
 	@Test
 	public void shouldParseSmallJSONFile() throws IOException, IllegalFormatException{
-		String fileName = "testFiles/SmallTest0.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest1.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest2.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
-		fileName = "testFiles/SmallTest3.json";
-		parseAndCompare(fileName, 10000);
-		parseAndCompare(fileName, 10);
+		File file = TestUtils.getProperJSONFile(0);
+		parseAndCompare(file, 10000);
+		parseAndCompare(file, 10);
+		file = TestUtils.getProperJSONFile(1);
+		parseAndCompare(file, 10000);
+		parseAndCompare(file, 10);
+		file = TestUtils.getProperJSONFile(2);
+		parseAndCompare(file, 10000);
+		parseAndCompare(file, 10);
+		file = TestUtils.getProperJSONFile(3);
+		parseAndCompare(file, 10000);
+		parseAndCompare(file, 10);
 	}
 	
-	private void parseAndCompare(String fileName, int stringLenngth) throws IOException, IllegalFormatException{
-		try(JSONLoader loader = new JSONLoader(new File(fileName), stringLenngth)){
+	@Test
+	public void shouldReadSingleString() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(4), -1)){
+			JSONNode root = parser.getRoot();
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_STRING, root.getType());
+		}
+	}
+	@Test
+	public void shouldReadSingleKeyword() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(5), -1)){
+			JSONNode root = parser.getRoot();
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_KEYWORD, root.getType());
+		}
+	}
+	@Test
+	public void shouldReadSingleNumber() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(6), -1)){
+			JSONNode root = parser.getRoot();
+			debug(root.getValue());
+			assertEquals(JSONNode.TYPE_NUMBER, root.getType());
+		}
+	}
+	
+	@Test
+	public void shouldThrowAnExceptionIfSeveralRoots() throws IOException, IllegalFormatException{
+		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getInvalidJSONFile(0), -1)){
+			thrown.expect(IllegalFormatException.class);
+			parser.getRoot();
+		}
+	}
+	
+	private void parseAndCompare(File file, int stringLenngth) throws IOException, IllegalFormatException{
+		try(JSONLoader loader = new JSONLoader(file, stringLenngth)){
 			// this parser vs...
 			JSONNode top = loader.getRoot();
 			// org.json parser
-			byte[] bytes = Files.readAllBytes(Paths.get(fileName));
+			byte[] bytes = Files.readAllBytes(file.toPath());
 			JSONObject topExp = new JSONObject(new String(bytes));
-			
 			verifyNode(topExp, loader, top, stringLenngth);
 		}
 	}

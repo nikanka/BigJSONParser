@@ -33,6 +33,7 @@ public class LazyByteStreamParser implements Closeable{
 	private UTF8FileReader reader = null;
 	private JSONNode root = null;
 	private List<JSONNode> rootChildren = null;
+	
 
 	/**
 	 * Contains last read byte outside a string. When reading a string it
@@ -243,6 +244,10 @@ public class LazyByteStreamParser implements Closeable{
 					+ "expected [" + openingQuotePos + ", " + closingQuotePos + "]");
 		}
 		return str.getString();
+	}
+	
+	public UTF8FileReader getReader(){
+		return reader;
 	}
 
 	/**

@@ -56,6 +56,73 @@ public class JSONLoader implements Closeable {
 	public File getFile(){
 		return parser.getFile();
 	}
+	
+	/**
+	 * Search for the next occurrence of the string specified in
+	 * <code>searchInfo</code> within the search range (also specified in
+	 * <code>searchInfo</code>), if the search is not finished yet (
+	 * <code>searchInfo.searchIsFinished() == false</code>). The match should
+	 * fit completely in the search range <br>
+	 * Save new search result in the <code>searchInfo</code> object
+	 * 
+	 * @param searchInfo
+	 *            object containing information about search of specified string
+	 *            within the specified region of the file, including all
+	 *            previous matches and the current match (if it was found). To
+	 *            check whether a new match was found use
+	 *            <code>searchInfo.searchIsFinished()</code>.
+	 * @throws IOException
+	 */
+	public void findNextMatch(StringSearchInfo searchInfo) throws IOException{
+		if(!searchInfo.searchIsFinished()){
+			parser.getReader().findNextMatch(searchInfo);
+		}
+	}
+	
+	/**
+	 * Start a new search of <code>stringToSearch</code> within range
+	 * <code>[searchStartPos, searchEndPos)</code> of a file. The match should
+	 * fit completely in this range.<br>
+	 * <br>
+	 * IMPORTANT: the start position of a search (<code>searchStartPos</code>) should  
+	 * be outside of a string. 
+	 * TODO: A match should be completely within a value or a name.
+	 * 
+	 * @param stringToSearch
+	 *            string to be found
+	 * @param searchStartPos
+	 *            inclusive start position of the search (match position should
+	 *            be not less than <code>searchStartPos</code>)
+	 * @param searchEndPos
+	 *            exclusive end position of the search (position of the last
+	 *            byte of a match should be smaller than
+	 *            <code>searchEndPos</code>)
+	 * @return an object containing information about the search including the
+	 *         first match (if any). To check whether a match was found use
+	 *         <code>searchInfo.searchIsFinished()</code>.
+	 * @throws IOException
+	 */
+	public StringSearchInfo startNewSearch(String stringToSearch, long searchStartPos, long searchEndPos) throws IOException{
+		StringSearchInfo searchInfo = StringSearchInfo.createNewSearch(stringToSearch, searchStartPos, searchEndPos);
+		findNextMatch(searchInfo);
+		return searchInfo;
+	}
+
+	/**
+	 * Search for a specified string within a given node. <br>
+	 * Does the same as <code>startNewSearch()</code> using node file
+	 * coordinates as a search range.
+	 * 
+	 * @param stringToSearch
+	 *            string to be found
+	 * @param node
+	 *            a node that sets the range of a search
+	 * @return an object containing information about the search
+	 * @throws IOException
+	 */
+	public StringSearchInfo startNewSearchWithinANode(String stringToSearch, JSONNode node)throws IOException{
+		return startNewSearch(stringToSearch, node.getStartFilePosition(), node.getEndFilePosition() + 1);
+	}
 //	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{
 //		return parser.loadChildrenAtPosition(pos);
 //	}
