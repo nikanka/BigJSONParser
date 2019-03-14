@@ -233,7 +233,7 @@ public class UTF8FileReader implements Closeable{
 	 * @throws IllegalFormatException
 	 *             if the file has no bytes to read
 	 */
-	protected byte getNextByte() throws IOException, IllegalFormatException{
+	byte getNextByte() throws IOException, IllegalFormatException{
 		if(!hasNext()){
 			throw new IllegalFormatException(
 					"Unexpected end of stream at pos " + filePos + " of file " + file.getPath());
@@ -402,7 +402,7 @@ public class UTF8FileReader implements Closeable{
 				//				reachedClosingQuote = false;
 				quoteScanResult.reset();
 				currentMode = MODE_READING_ASCII_CHARS;
-				return curChar;
+				//return curChar;
 			} else {
 				fillCharBufferUpToQuote();
 				debug("GetNextChar char buffer load: " + new String(
@@ -549,10 +549,44 @@ public class UTF8FileReader implements Closeable{
 //		return filePos;
 //	}
 
+	/**
+	 * Validate the remaining portion of the string that is currently being read.<br>
+	 * <br>
+	 * IMPORTANT: the portion of string that has not been decoded so far is not
+	 * decoded further, so validation only proceeds for ASCII symbols of the
+	 * string, i.e. the proper char encoding is not validated - only the validity of
+	 * escape sequences and absence of control characters
+	 * 
+	 * @throws IllegalFormatException
+	 * @throws IOException
+	 */
+	protected void skipTheStringAndValidateASCII()throws IllegalFormatException, IOException{
+		if(!stringReadingState.isInFinalState()){
+			throw new RuntimeException(
+					"We should not have got here if the stringReadingState is in non-final state (i.e. in the middle of a backslash sequence)");
+		}
+		// validate chars remaining in char buffer
+		while(charBuffer.hasRemaining()){
+			stringReadingState.pushChar(charBuffer.get());
+		}
+		quoteScanResult.reset(); // do not need it anymore
+		currentMode = MODE_READING_ASCII_CHARS;
+		// change mode to ASCII but maintain the state
+		stringReadingState.changeMode(StringReadingStateMachine.MODE_CHECK_ASCII);
+		while(hasNext()){
+			byte b = peekNextByte();
+			if(b == '"' && !stringReadingState.isInEscapedSequence()){
+				break;
+			}
+			stringReadingState.pushByte(getNextByte());
+		}
+		stringReadingState.reset();
+	}
+	// TODO: if skip and validate won't be too slow - switch to using skipTheStringAndValidateASCII
 	protected void skipTheString() throws IOException, IllegalFormatException{
 		if(!stringReadingState.isInFinalState()){
 			throw new RuntimeException(
-					"We should not have got here if the stateCheck is in non-final state (i.e. in the middle of a backslash sequence)");
+					"We should not have got here if the stringReadingState is in non-final state (i.e. in the middle of a backslash sequence)");
 		}
 		// imitate reading char buffer up to the end - for consistency
 		charBuffer.position(charBuffer.limit());

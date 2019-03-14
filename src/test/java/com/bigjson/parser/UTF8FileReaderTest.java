@@ -14,7 +14,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.bigjson.parser.UTF8FileReader;
-import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
+import com.bigjson.parser.LazyJSONParser.StringWithCoords;
 
 public class UTF8FileReaderTest {
 	

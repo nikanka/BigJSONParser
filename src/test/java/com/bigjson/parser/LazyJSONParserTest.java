@@ -1,6 +1,6 @@
 package com.bigjson.parser;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,10 +16,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.bigjson.parser.LazyByteStreamParser.StringWithCoords;
+import com.bigjson.parser.LazyJSONParser.StringWithCoords;
 
 
-public class LazyByteStreamParserTest {
+public class LazyJSONParserTest {
 	
 	private static boolean DEBUG = false;
 	
@@ -177,27 +177,96 @@ public class LazyByteStreamParserTest {
 		checkAllStringsFromFile(file, -1, strings);
 	}
 	
-		@Test
-	public void shouldNotReadOutsideOfFilePosRange() throws IOException, IllegalFormatException{
+	@Test
+	public void shouldThrowExceptionForInvalidJSONFormat() throws IOException{
+		expectIllegalFormatExceptionWhileRootValidation("tru", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{{},[]}", -1);
+		expectIllegalFormatExceptionWhileRootValidation("[{},[],]", -1);
+		expectIllegalFormatExceptionWhileRootValidation("[2 , ,[],]", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{, \"1\":[],}", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{\"1\":[]]", -1);
+		expectIllegalFormatExceptionWhileRootValidation("[[], [{{}}], []]", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2\": {2}}", -1);
+		expectIllegalFormatExceptionWhileRootValidation("[\"aaaaaaa\\k\"]", 2);
+		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2\": [\"aaaaaaa\\k\"]}", 2);
+		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2: [\"aaaaaaa\\k\"]}", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2\": [\"aaaaaaa]}", -1);
+		// backslash should be the last character in charBuffer
+		char[] longStr = new char[UTF8FileReader.BUFFER_SIZE-1];
+		Arrays.fill(longStr, 's'); 
+		expectIllegalFormatExceptionWhileRootValidation("[\"" + new String(longStr) + "\\k\"]", 2);
+		 // fourth (invalid) hex should be the third byte after char buffer is over
+		longStr = new char[UTF8FileReader.BUFFER_SIZE-3];
+		Arrays.fill(longStr, 's'); // backslash should be the last character in charBuffer
+		expectIllegalFormatExceptionWhileRootValidation("[\"" + new String(longStr) + "\\u123J\"]", 2);
+
+	}
+	@Test
+	public void shouldThrowExceptionForInvalidNodeFormat() throws IOException, IllegalFormatException{
+		expectIllegalFormatExceptionWhileNodeValidation("[[], [{{}}], []]", -1, 5);
+		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": {2}}", -1, 14);
+		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": \"aaaaaaa\\k\"}", 2, 14);
+		expectIllegalFormatExceptionWhileNodeValidation("[\"aaaaaaa\\k\"]", 2, 1);
+		
+	}
+	
+	private void expectIllegalFormatExceptionWhileRootValidation(String json, int strDisplayLen) throws IOException{
 		File file = TestUtils.getGeneratedFileName();
 		FileWriter fw = new FileWriter(file);
-		fw.write("a");
+		fw.write(json);
 		fw.close();
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, -1)){
-			thrown.expect(IllegalArgumentException.class);
-			parser.loadStringAtPosition(2, 3);
+		try(LazyJSONParser parser = new LazyJSONParser(file, strDisplayLen)){
+			try {
+				parser.getRoot(true);
+			} catch(IllegalFormatException e){
+				System.err.println(e.getMessage());
+				return;
+			}
+		}
+		throw new RuntimeException("An IllegalFormatException was expected for string \"" + json + "\"");
+	}
+	
+	private void expectIllegalFormatExceptionWhileNodeValidation(String json, int strDisplayLen, int nodePos)
+			throws IOException, IllegalFormatException {
+		File file = TestUtils.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
+		fw.write(json);
+		fw.close();
+		try(LazyJSONParser parser = new LazyJSONParser(file, strDisplayLen)){
+			parser.getRoot(false); // do not validate root children
+			IllegalFormatException e = parser.validateNodeAtPosition(nodePos);
+			assertNotNull(e);
+			System.err.println(e.getMessage());
 		}
 	}
-
+	
+	@Test
+	public void shouldNotReadOutsideOfFilePosRange() throws IOException, IllegalFormatException{
+		readStringAtFilePos("a", 3, 4, IllegalArgumentException.class);
+	}
+	@Test
+	public void shouldNotReadStringWithoutOpeningQuote() throws IOException, IllegalFormatException{
+		readStringAtFilePos("a", 1, 2, IllegalFormatException.class);
+	}
+	@Test
+	public void shouldNotReadStringWithWrongClosingPos() throws IOException, IllegalFormatException{
+		readStringAtFilePos("a", 0, 1, RuntimeException.class);
+	}
 	@Test
 	public void shouldNotReadAtNegativePos() throws IOException, IllegalFormatException{
+		readStringAtFilePos("a", -1, 1, IllegalArgumentException.class);
+	}
+	
+	private void readStringAtFilePos(String str, int from, int to, Class exceptionClass)  throws IOException, IllegalFormatException{
 		File file = TestUtils.getGeneratedFileName();
 		FileWriter fw = new FileWriter(file);
-		fw.write("a");
+		fw.write('"');
+		fw.write(str);
+		fw.write('"');
 		fw.close();
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, -1)){
-			thrown.expect(IllegalArgumentException.class);
-			parser.loadStringAtPosition(-1, 1);
+		try(LazyJSONParser parser = new LazyJSONParser(file, -1)){
+			thrown.expect(exceptionClass);
+			parser.loadStringAtPosition(from, to);
 		}
 	}
 
@@ -206,13 +275,13 @@ public class LazyByteStreamParserTest {
 		List<StringWithCoords> resultWithCoords = new ArrayList<StringWithCoords>();
 		// find all strings
 		debug("find all strings with in the file");
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(file, strMaxLen)){
+		try(LazyJSONParser parser = new LazyJSONParser(file, strMaxLen)){
 			while(parser.hasNext()){
 				parser.moveToNextByte();
 				// we suppose that backslash means nothing outside of a string 
 				// and that it cannot be seen outside of a  string in a real correct JSON file
 				if(parser.getCurByte() == '"'){
-					StringWithCoords str = parser.parseString(strMaxLen >= 0);
+					StringWithCoords str = parser.parseString(strMaxLen >= 0, false);
 					resultWithCoords.add(str);
 					debug("Parsed String: '"+str.getString()+"'");
 				}

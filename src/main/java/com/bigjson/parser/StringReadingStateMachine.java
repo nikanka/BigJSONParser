@@ -26,10 +26,7 @@ public class StringReadingStateMachine {
 	 */
 	public void reset(int mode){
 		state = STATE_DEFAULT;
-		if(mode != MODE_CHECK_ASCII && mode != MODE_CHECK_UTF8 && mode != MODE_READ_UTF8){
-			throw new IllegalArgumentException("Unknow mode value: " + mode);
-		}
-		this.mode = mode;
+		changeMode(mode);
 	}
 	
 	/**
@@ -37,6 +34,17 @@ public class StringReadingStateMachine {
 	 */
 	public void reset(){
 		state = STATE_DEFAULT;
+	}
+	
+	/**
+	 * Change the mode, maintain the state
+	 * @param newMode
+	 */
+	public void changeMode(int newMode){
+		if(mode != MODE_CHECK_ASCII && mode != MODE_CHECK_UTF8 && mode != MODE_READ_UTF8){
+			throw new IllegalArgumentException("Unknow mode value: " + mode);
+		}
+		this.mode = newMode;
 	}
 	
 	public boolean isInFinalState(){
@@ -112,6 +120,7 @@ public class StringReadingStateMachine {
 	 *             </ul>
 	 */
 	public boolean pushChar(char ch) throws IllegalFormatException{
+//		System.out.println("push char '" + ch + "', mode = " + mode);
 		if(ch < 32){// < 20 in hex
 			throw new IllegalFormatException("Got control character in a string (code = " + (int)ch + ")");
 		}

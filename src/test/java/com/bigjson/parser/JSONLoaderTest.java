@@ -49,24 +49,24 @@ public class JSONLoaderTest {
 	
 	@Test
 	public void shouldReadSingleString() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(4), -1)){
-			JSONNode root = parser.getRoot();
+		try(JSONLoader loader = new JSONLoader(TestUtils.getProperJSONFile(4), -1)){
+			JSONNode root = loader.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_STRING, root.getType());
 		}
 	}
 	@Test
 	public void shouldReadSingleKeyword() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(5), -1)){
-			JSONNode root = parser.getRoot();
+		try(JSONLoader loader = new JSONLoader(TestUtils.getProperJSONFile(5), -1)){
+			JSONNode root = loader.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_KEYWORD, root.getType());
 		}
 	}
 	@Test
 	public void shouldReadSingleNumber() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getProperJSONFile(6), -1)){
-			JSONNode root = parser.getRoot();
+		try(JSONLoader loader = new JSONLoader(TestUtils.getProperJSONFile(6), -1)){
+			JSONNode root = loader.getRoot();
 			debug(root.getValue());
 			assertEquals(JSONNode.TYPE_NUMBER, root.getType());
 		}
@@ -74,16 +74,16 @@ public class JSONLoaderTest {
 	
 	@Test
 	public void shouldThrowAnExceptionIfSeveralRoots() throws IOException, IllegalFormatException{
-		try(LazyByteStreamParser parser = new LazyByteStreamParser(TestUtils.getInvalidJSONFile(0), -1)){
+		try(JSONLoader loader = new JSONLoader(TestUtils.getInvalidJSONFile(0), -1)){
 			thrown.expect(IllegalFormatException.class);
-			parser.getRoot();
+			loader.getRoot();
 		}
 	}
 	
 	private void parseAndCompare(File file, int stringLenngth) throws IOException, IllegalFormatException{
 		try(JSONLoader loader = new JSONLoader(file, stringLenngth)){
 			// this parser vs...
-			JSONNode top = loader.getRoot();
+			JSONNode top = loader.getRootAndValidate();
 			// org.json parser
 			byte[] bytes = Files.readAllBytes(file.toPath());
 			JSONObject topExp = new JSONObject(new String(bytes));

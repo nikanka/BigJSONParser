@@ -14,7 +14,7 @@ import java.util.List;
  *
  */
 public class JSONLoader implements Closeable {
-	private LazyByteStreamParser parser;
+	private LazyJSONParser parser;
 	
 	public JSONLoader(File file, int stringDisplayLimit) throws IOException, IllegalFormatException{
 		this(file, null, stringDisplayLimit);
@@ -39,7 +39,7 @@ public class JSONLoader implements Closeable {
 	 *             if the format of the data is not as expected
 	 */
 	public JSONLoader(File file, String topLevelName, int stringDisplayLimit) throws IOException, IllegalFormatException{
-		parser = new LazyByteStreamParser(file, topLevelName, stringDisplayLimit);
+		parser = new LazyJSONParser(file, topLevelName, stringDisplayLimit);
 //		long t1 = System.currentTimeMillis();
 //		root = parser.getRoot();
 //		System.out.println("LoadTime for the root: "+(System.currentTimeMillis() - t1)/1000 + " s");
@@ -50,7 +50,11 @@ public class JSONLoader implements Closeable {
 	}
 	
 	public JSONNode getRoot() throws IOException, IllegalFormatException{
-		return parser.getRoot();
+		return parser.getRoot(false);
+	}
+	
+	public JSONNode getRootAndValidate() throws IOException, IllegalFormatException{
+		return parser.getRoot(true);
 	}
 	
 	public File getFile(){
@@ -127,7 +131,7 @@ public class JSONLoader implements Closeable {
 //		return parser.loadChildrenAtPosition(pos);
 //	}
 	/**
-	 * 
+	 * Load children of a given node. 
 	 * @param node
 	 * @return a list of children of a given node if it is not null and not a leaf
 	 * @throws IOException
@@ -143,6 +147,21 @@ public class JSONLoader implements Closeable {
 			return parser.getRootChildren();
 		}
 		return parser.loadChildrenAtPosition(node.getValueFilePosition());
+	}
+	
+	/**
+	 * Validate a format of a given node.
+	 * 
+	 * @param node to be validated
+	 * @return an instance of {@link IllegalFormatException} if a problem with
+	 *         the node format occurs
+	 * @throws IOException
+	 */
+	public IllegalFormatException validateNode(JSONNode node) throws IOException {
+		if(node == null){
+			return null;
+		}
+		return parser.validateNodeAtPosition(node.getValueFilePosition());
 	}
 	/**
 	 * Return new JSONNode object which is the same as <code>node</code>
