@@ -17,7 +17,7 @@ public class JSONStateMachineTest {
 	public void shouldValidateAllGoodJSONFiles() throws IOException, IllegalFormatException {
 		for(int i = 0; i < 8; i++){
 			System.out.println("Validate proper JSON #" + i);
-			validate(TestUtils.getProperJSONFile(i));
+			validateRoot(TestUtils.getProperJSONFile(i));
 		}
 	}
 	
@@ -47,11 +47,11 @@ public class JSONStateMachineTest {
 
 	}
 	
-	private void validate(File file) throws IOException, IllegalFormatException {
-		validate(Files.readAllBytes(file.toPath()));
+	private void validateRoot(File file) throws IOException, IllegalFormatException {
+		validateRoot(Files.readAllBytes(file.toPath()));
 	}
-	private void validate(byte[] bytes) throws IllegalFormatException {
-		jsonValidator.reset();
+	private void validateRoot(byte[] bytes) throws IllegalFormatException {
+		jsonValidator.reset(false);
 		for(byte b: bytes){
 			jsonValidator.push(b);
 		}
@@ -61,7 +61,7 @@ public class JSONStateMachineTest {
 	
 	private void expectIllegalFormatException(String json) {
 		try{
-			validate(json.getBytes(utf8));
+			validateRoot(json.getBytes(utf8));
 		} catch(IllegalFormatException e){
 			System.err.println(e.getMessage());
 			return;

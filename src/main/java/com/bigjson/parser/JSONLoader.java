@@ -157,11 +157,21 @@ public class JSONLoader implements Closeable {
 	 *         the node format occurs
 	 * @throws IOException
 	 */
-	public IllegalFormatException validateNode(JSONNode node) throws IOException {
-		if(node == null){
+	public IllegalFormatException validateNode(JSONNode node) throws IOException, IllegalFormatException {
+		if (node == null) {
 			return null;
 		}
-		return parser.validateNodeAtPosition(node.getValueFilePosition());
+		/*
+		 * if the node is the root we do not expect non-space symbols just after
+		 * it (this is needed only when the root is a number, because a number
+		 * does not have a way to determine that it is over except meeting the
+		 * symbol just after it, which may legally be a comma or a bracket if
+		 * this not is not a root)
+		 */
+		// TODO: find a way to make it more simple and solve the problem with a
+		// number
+		return parser.validateNodeAtPosition(node.getValueFilePosition(), node.getEndFilePosition(),
+				node.getStartFilePosition() == getRoot().getStartFilePosition());
 	}
 	/**
 	 * Return new JSONNode object which is the same as <code>node</code>

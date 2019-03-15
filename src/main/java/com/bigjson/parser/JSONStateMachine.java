@@ -2,6 +2,8 @@ package com.bigjson.parser;
 
 import java.util.Stack;
 
+// TODO: add possibility to check if names in an object are unique (although 
+// ECMA-404 says they are not required to be unique, some people might want them to be)
 public class JSONStateMachine {
 	
 	private static final String KEYWORD_TRUE = "true";
@@ -9,59 +11,6 @@ public class JSONStateMachine {
 	private static final String KEYWORD_NULL = "null";
 	private static final boolean DEBUG = false;
 	
-//	public enum StateType {
-//		OBJECT, OBJECT_ELEMENT, NAME, ARRAY, ARRAY_ELEMENT, VALUE, NUMBER, STRING, NULL, TRUE, FALSE;
-//		
-//		private boolean isEmpty = true;
-//
-//		public void notEmpty() {
-//			isEmpty = false;
-//		}
-//
-//		public boolean isEmpty() {
-//			return isEmpty;
-//		}
-//	}
-	public enum StateType {
-		OBJECT, OBJECT_ELEMENT, NAME, ARRAY, ARRAY_ELEMENT, VALUE, NUMBER, STRING, NULL, TRUE, FALSE;
-	}
-	
-	private static class State {
-		
-		private StateType type;
-
-		private boolean isEmpty = true;
-		
-		private State(StateType type){
-			this.type = type;
-		}
-		
-		private State(StateType type, boolean isEmpty){
-			this(type);
-			this.isEmpty = isEmpty; 
-		}
-
-		public StateType getType(){
-			return type;
-		}
-		public void notEmpty() {
-			isEmpty = false;
-		}
-
-		public boolean isEmpty() {
-			return isEmpty;
-		}
-		
-		public boolean typeOf(StateType type){
-			return this.type == type;
-		}
-		
-		@Override
-		public String toString() {
-			return type.toString();
-		}
-	}
-
 	// TODO: should I use Deque instead?
 	private Stack<State> stateStack; 
 	private State state = null;
@@ -70,7 +19,19 @@ public class JSONStateMachine {
 	private boolean doneWithRoot = false;
 	
 	private int curKeywordLen = 0;
-	private boolean valueIsEmpty = true;
+	/**
+	 * we need this if the root is a number: number does not have closing symbol
+	 * or predefined length, so we know it is finished only when ws, comma,
+	 * bracket or eof is pushed. If the root is not a real root in the file, we
+	 * allow to have, say, a comma after a number
+	 * 
+	 */
+	private boolean expectNonSpaceBytesJustAfterRoot = false;
+	private State rootState;
+
+	public enum StateType {
+		OBJECT, OBJECT_ELEMENT, NAME, ARRAY, ARRAY_ELEMENT, VALUE, NUMBER, STRING, NULL, TRUE, FALSE;
+	}
 	
 	public JSONStateMachine(){
 		stateStack = new Stack<State>(); 
@@ -83,7 +44,13 @@ public class JSONStateMachine {
 //		reset();
 //		enterNewState(currentState);
 //	}
-	public void reset(){
+	/**
+	 * Reset state machine to start validate a new node.
+	 * 
+	 * @param expectNonSpaceBytesJustAfterRoot
+	 *            should be false if going to validate a root, true otherwise
+	 */
+	public void reset(boolean expectNonSpaceBytesJustAfterRoot){
 		if(stateStack.size() > 0){
 			stateStack = new Stack<State>();
 		}
@@ -91,6 +58,7 @@ public class JSONStateMachine {
 		doneWithRoot = false;
 		numberStateMachine.reset();
 		stringReadingStateMachine.reset();
+		this.expectNonSpaceBytesJustAfterRoot = expectNonSpaceBytesJustAfterRoot;
 	}
 	
 	public void pushEndOfInput() throws IllegalFormatException{
@@ -111,6 +79,7 @@ public class JSONStateMachine {
 			throw new RuntimeException("State stack is not empty, but doneWithRoot is true");
 		}
 	}
+	
 	
 	/**
 	 * If state is null, the machine is outside of the root: either before 
@@ -133,6 +102,10 @@ public class JSONStateMachine {
 		return doneWithRoot;
 	}
 	
+	public State getRootState(){
+		return rootState;
+	}
+	
 	private void enterNewState(StateType newStateType){
 		if(!stateStack.isEmpty()){
 			// parent state is not empty now
@@ -140,7 +113,6 @@ public class JSONStateMachine {
 		}
 		state = new State(newStateType);
 		stateStack.add(state);
-		
 		debug("Entered " + state + "(" + (state.isEmpty() ? "empty" : "not empty" + ", cur states: " + stateStack)
 				+ ")");
 	}
@@ -155,10 +127,9 @@ public class JSONStateMachine {
 	private State exitCurrentState(){
 		if(state == null){
 			throw new IllegalArgumentException("The machine is not in any state currently");
-		}
-		
-		State poped = stateStack.pop();
-		debug("Exited " + poped + "(" + (state.isEmpty()?"empty":"not empty") + ")" + ", cur states: " + stateStack);
+		}		
+		State popped = stateStack.pop();
+		debug("Exited " + popped + "(" + (state.isEmpty()?"empty":"not empty") + ")" + ", cur states: " + stateStack);
 		if(stateStack.isEmpty()){
 			doneWithRoot = true;
 			state = null;
@@ -189,8 +160,9 @@ public class JSONStateMachine {
 			}
 //			enterNewState(State.VALUE);
 //			pushValue(b); // start root state
-			// do not allow a value to be a root because there is no signal to exit it at the end
+			// do not make the root a value because there is no signal to exit it at the end
 			enterNewState(b);
+			rootState = state;
 			return;
 		} 
 		if(state.typeOf(StateType.OBJECT)){
@@ -282,7 +254,7 @@ public class JSONStateMachine {
 		if(isNumberEnd(b)){
 			exitCurrentState();
 			if(state == null){ // if number is a root b can only be a ws 
-				if(!isWhitespace(b)){
+				if(!expectNonSpaceBytesJustAfterRoot && !isWhitespace(b)){
 					throw new IllegalFormatException("Got non-space byte outside a root: " + b);
 				}
 			} else { 
@@ -553,4 +525,46 @@ public class JSONStateMachine {
 		}
 	}
 
+	public static class State {
+		
+		private StateType type;
+
+		private boolean isEmpty = true;
+		
+		private State(StateType type){
+			this.type = type;
+		}
+		
+		private State(StateType type, boolean isEmpty){
+			this(type);
+			this.isEmpty = isEmpty; 
+		}
+
+		public void notEmpty() {
+			isEmpty = false;
+		}
+
+		public boolean isEmpty() {
+			return isEmpty;
+		}
+		
+		public boolean typeOf(StateType type){
+			return this.type == type;
+		}
+		
+		/**
+		 * Number state is special because number has no end of state symbol (like a quote for 
+		 * a string, a bracket for an object and an array and the known length for keywords).
+		 * We know that the number is over only when we meet ws, comma, a bracket or eof
+		 * @return
+		 */
+		public boolean isNumberState(){
+			return this.type == StateType.NUMBER;
+		}
+
+		@Override
+		public String toString() {
+			return type.toString();
+		}
+	}
 }

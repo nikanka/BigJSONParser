@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.bigjson.parser.JSONStateMachine.State;
+
 /**
  * Parse a JSON text (provided by a file reader) upon request. I.e. it can parse
  * a node without parsing its child nodes and then it can parse child nodes
@@ -147,11 +149,11 @@ public class LazyJSONParser implements Closeable{
 	private void parseRootWithChildren(boolean validate) throws IOException, IllegalFormatException{
 		// move to the beginning of the file if we are not there
 		reader.getToPosition(0);
-		debug("Entered parseRoot ('" + topLevelName+ "'). File pos = " + reader.getFilePosition());	
+		debug("Entered parseRootWithChildren ('" + topLevelName+ "'). File pos = " + reader.getFilePosition());	
 		moveToNextNonspaceByte();
 		if(curByte != '{' && curByte != '['){
 			// this root is not allowed to have children
-			root = parseValue(topLevelName, reader.getFilePosition() - 1, validate);
+			root = parseValue(topLevelName, reader.getFilePosition() - 1, true, validate);
 		} else {
 			long startPos = reader.getFilePosition() - 1; // -1 because we've already read opening bracket
 			if(curByte == '{'){
@@ -232,16 +234,20 @@ public class LazyJSONParser implements Closeable{
 	 *         detected while reading the token, null otherwise
 	 * @throws IOException
 	 */
-	public IllegalFormatException validateNodeAtPosition(long filePos) throws IOException {
-		if(!reader.getToPosition(filePos)){
+	public IllegalFormatException validateNodeAtPosition(long startPos, long endPos, boolean isRoot) throws IOException {
+		if(!reader.getToPosition(startPos)){
 			throw new IllegalArgumentException("Trying to set the cursor to a position that is not smaller "
-					+ "than the file size: " + filePos);
+					+ "than the file size: " + startPos);
 		}
 		try{
 			moveToNextByte();
-			moveToTheEndOfTokenAndValidate();
+			moveToTheEndOfTokenAndValidate(isRoot);
 		} catch (IllegalFormatException e){
 			return e;
+		}
+		if(reader.getFilePosition() - 1 != endPos){
+			throw new RuntimeException("The end of validated token is not equal to the expected end of token: got "
+					+ (reader.getFilePosition() - 1) + ", exp: " + endPos);
 		}
 		return null; // got no exception! 
 	}
@@ -309,7 +315,7 @@ public class LazyJSONParser implements Closeable{
 			throwIllegalFormatExceptionWithFilePos("The first array element is empty");
 		}
 		while(curByte != ']'){
-			JSONNode child = parseValue(""+nodeList.size(), reader.getFilePosition() - 1, validate);
+			JSONNode child = parseValue(""+nodeList.size(), reader.getFilePosition() - 1, false, validate);
 			nodeList.add(child);
 			moveToNextNonspaceByte();
 			if(curByte == ']'){
@@ -442,16 +448,29 @@ public class LazyJSONParser implements Closeable{
 	 * @throws IllegalFormatException
 	 * @throws IOException
 	 */
-	private void moveToTheEndOfTokenAndValidate()throws IllegalFormatException, IOException{
-		validator.reset();
+	private void moveToTheEndOfTokenAndValidate(boolean isRoot)throws IllegalFormatException, IOException{
+		validator.reset(!isRoot);
 		try {
 			validator.push(curByte); // push already read first byte
-			while(!validator.doneWithRoot() && hasNext()){
-				moveToNextByte();
-				validator.push(curByte);
+			if(!validator.doneWithRoot()){
+				while(hasNext()){
+//					moveToNextByte();
+					validator.push(reader.peekNextByte());
+					if(validator.doneWithRoot()){
+						// if the exited state was not NUMBER the symbol that indicate
+						// the end of state is the last symbol of the token, so
+						// we need to read it
+						if(!validator.getRootState().isNumberState()){
+							moveToNextByte();
+						}
+						break;
+					}
+					moveToNextByte();
+				}
 			}
 			// we need this only if the end of token has not been reached while the input is over
-			// (the valid example is a single number in a file)
+			// (the valid example is a single number in a file without ws after it, 
+			// the invalid-format example is unexpected end of file)
 			validator.pushEndOfInput();
 		} catch (IllegalFormatException e){
 			throwIllegalFormatExceptionWithFilePos(e.getMessage());
@@ -481,7 +500,7 @@ public class LazyJSONParser implements Closeable{
 					+ "name and value in an object");
 		}
 		moveToNextNonspaceByte();
-		JSONNode ret = parseValue(name, startPos, validate);
+		JSONNode ret = parseValue(name, startPos, false, validate);
 		debug("Done with parseNameValuePair: next pos = " + reader.getFilePosition() + ", last read byte = '"
 				+ (char) curByte + "'");
 		return ret;
@@ -503,7 +522,7 @@ public class LazyJSONParser implements Closeable{
 	 *             non-ASCII symbol is met outside of a string or if the value
 	 *             does not match the format
 	 */
-	private JSONNode parseValue(String name, long startPos, boolean validate) throws IOException, IllegalFormatException{
+	private JSONNode parseValue(String name, long startPos, boolean isRoot, boolean validate) throws IOException, IllegalFormatException{
 		debug("Entered parseValue ('" + name + "'): " + (reader.getFilePosition() - 1));
 		if(curByteIsWhitespace()){
 			throw new RuntimeException("Current byte should be the first non-space byte of the value to parse");
@@ -513,14 +532,14 @@ public class LazyJSONParser implements Closeable{
 		if(curByte == '{'){
 			ret = new JSONNonTreeNode(JSONNode.TYPE_OBJECT, name);
 			if(validate){
-				moveToTheEndOfTokenAndValidate();
+				moveToTheEndOfTokenAndValidate(isRoot);
 			} else {
 				moveToTheEndOfToken((byte)'{', (byte)'}');
 			}
 		} else if(curByte == '['){
 			ret = new JSONNonTreeNode(JSONNode.TYPE_ARRAY, name);
 			if(validate){
-				moveToTheEndOfTokenAndValidate();
+				moveToTheEndOfTokenAndValidate(isRoot);
 			} else {
 				moveToTheEndOfToken((byte)'[', (byte)']');
 			}

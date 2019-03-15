@@ -191,6 +191,20 @@ public class LazyJSONParserTest {
 		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2\": [\"aaaaaaa\\k\"]}", 2);
 		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2: [\"aaaaaaa\\k\"]}", -1);
 		expectIllegalFormatExceptionWhileRootValidation("{\"1\": 1, \"2\": [\"aaaaaaa]}", -1);
+		// JSON with only ws
+		expectIllegalFormatExceptionWhileRootValidation("  	", -1);
+		// non-space symbol outside of the root
+		expectIllegalFormatExceptionWhileRootValidation("1,", -1);
+		expectIllegalFormatExceptionWhileRootValidation("1 ,", -1);
+		expectIllegalFormatExceptionWhileRootValidation("\"aaa\",", -1);
+		expectIllegalFormatExceptionWhileRootValidation("\"aaa\" ,", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{},", -1);
+		expectIllegalFormatExceptionWhileRootValidation("{} ,", -1);
+		expectIllegalFormatExceptionWhileRootValidation("true,", -1);
+		expectIllegalFormatExceptionWhileRootValidation("false ,", -1);
+		expectIllegalFormatExceptionWhileRootValidation(" , 1", -1);
+		expectIllegalFormatExceptionWhileRootValidation(",1", -1);
+		
 		// backslash should be the last character in charBuffer
 		char[] longStr = new char[UTF8FileReader.BUFFER_SIZE-1];
 		Arrays.fill(longStr, 's'); 
@@ -202,12 +216,17 @@ public class LazyJSONParserTest {
 
 	}
 	@Test
+	public void shouldValidateCorrectNode() throws IllegalFormatException, IOException{
+		validateImmideateRootChildren("[3, \"str\", {}, [], -0.5e+10]", -1);
+		validateImmideateRootChildren("[3 , \"str\" , {} , [] , -0.5e+10] ", -1);
+
+	}
+	@Test
 	public void shouldThrowExceptionForInvalidNodeFormat() throws IOException, IllegalFormatException{
-		expectIllegalFormatExceptionWhileNodeValidation("[[], [{{}}], []]", -1, 5);
-		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": {2}}", -1, 14);
-		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": \"aaaaaaa\\k\"}", 2, 14);
-		expectIllegalFormatExceptionWhileNodeValidation("[\"aaaaaaa\\k\"]", 2, 1);
-		
+		expectIllegalFormatExceptionWhileNodeValidation("[[], [{{}}], []]", -1, 5, 11);
+		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": {2}}", -1, 14, 16);
+		expectIllegalFormatExceptionWhileNodeValidation("{\"1\": 1, \"2\": \"aaaaaaa\\k\"}", 2, 14, 24);
+		expectIllegalFormatExceptionWhileNodeValidation("[\"aaaaaaa\\k\"]", 2, 1, 11);
 	}
 	
 	private void expectIllegalFormatExceptionWhileRootValidation(String json, int strDisplayLen) throws IOException{
@@ -226,17 +245,35 @@ public class LazyJSONParserTest {
 		throw new RuntimeException("An IllegalFormatException was expected for string \"" + json + "\"");
 	}
 	
-	private void expectIllegalFormatExceptionWhileNodeValidation(String json, int strDisplayLen, int nodePos)
+	private void expectIllegalFormatExceptionWhileNodeValidation(String json, int strDisplayLen, int nodeStart, int nodeEnd)
 			throws IOException, IllegalFormatException {
+		IllegalFormatException e = validateInnerNode(json, strDisplayLen, nodeStart, nodeEnd);
+		assertNotNull(e);
+		System.err.println(e.getMessage());
+
+	}
+
+	private IllegalFormatException validateInnerNode(String json, int strDisplayLen, int nodeStart, int nodeEnd) throws IOException, IllegalFormatException {
 		File file = TestUtils.getGeneratedFileName();
 		FileWriter fw = new FileWriter(file);
 		fw.write(json);
 		fw.close();
 		try(LazyJSONParser parser = new LazyJSONParser(file, strDisplayLen)){
 			parser.getRoot(false); // do not validate root children
-			IllegalFormatException e = parser.validateNodeAtPosition(nodePos);
-			assertNotNull(e);
-			System.err.println(e.getMessage());
+			return parser.validateNodeAtPosition(nodeStart, nodeEnd, false);
+		}
+	}
+	
+	private void validateImmideateRootChildren(String json, int strDisplayLen) throws IOException, IllegalFormatException {
+		File file = TestUtils.getGeneratedFileName();
+		FileWriter fw = new FileWriter(file);
+		fw.write(json);
+		fw.close();
+		try(LazyJSONParser parser = new LazyJSONParser(file, strDisplayLen)){
+			parser.getRoot(false); // do not validate root children
+			for(JSONNode node: parser.getRootChildren()){
+				assertNull(parser.validateNodeAtPosition(node.getValueFilePosition(), node.getEndFilePosition(), false));
+			} 
 		}
 	}
 	
