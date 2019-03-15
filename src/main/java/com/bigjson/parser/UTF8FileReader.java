@@ -11,12 +11,16 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class UTF8FileReader implements Closeable{
-	public static final int bufferSize = 8192;
+	public static final int BUFFER_SIZE = 8192;
+	
 	private static final int MODE_READING_ASCII_CHARS = 0;
 	private static final int MODE_READING_UTF8_CHARS = 1;
+	private final Charset charset = Charset.forName("UTF-8");
 	
 	private int currentMode = MODE_READING_ASCII_CHARS;
 	private boolean DEBUG = false;
@@ -28,10 +32,10 @@ public class UTF8FileReader implements Closeable{
 	private FileChannel fileChannel;
 	private ByteBuffer byteBuffer;
 	private CharBuffer charBuffer;
-	private StringReadingStateMachine stringReadingState = new StringReadingStateMachine(StringReadingStateMachine.MODE_READ);
+	private StringReadingStateMachine stringReadingState = new StringReadingStateMachine(StringReadingStateMachine.MODE_READ_UTF8);
 	private boolean hasNext = true;
 	private ClosingQuoteScanResult quoteScanResult = new ClosingQuoteScanResult();
-	private CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder()
+	private CharsetDecoder decoder = charset.newDecoder()
 			         .onMalformedInput(CodingErrorAction.REPORT)
 			         .onUnmappableCharacter(CodingErrorAction.REPORT);
 
@@ -47,8 +51,8 @@ public class UTF8FileReader implements Closeable{
 		this.file = file;
 		input = new FileInputStream(file);
 		fileChannel = input.getChannel();
-		charBuffer = CharBuffer.allocate(bufferSize);
-		byteBuffer = ByteBuffer.allocate(bufferSize);
+		charBuffer = CharBuffer.allocate(BUFFER_SIZE);
+		byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 		byteBuffer.flip();
 		charBuffer.flip();
 		hasNext = readBytes() >= 0;
@@ -59,6 +63,10 @@ public class UTF8FileReader implements Closeable{
 		
 	public int getReadingMode(){
 		return currentMode;
+	}
+	
+	public Charset getCharset(){
+		return charset;
 	}
 
 	/**
@@ -155,12 +163,59 @@ public class UTF8FileReader implements Closeable{
 		return read;//byteBuffer.remaining();
 	}
 	
+	//TODO: implement this but first implement finite-state machine to track reading states 
+	// (a string value, a name, a number...) 
+	public void findNextMatch(StringSearchInfo searchInfo) throws IOException{
+		getToPosition(searchInfo.getLastMatchPos());
+		currentMode = MODE_READING_ASCII_CHARS;
+		
+		// preprocess the string (possibly get two strings as a result)
+		// and convert string(s) into byte array(s)
+		List<byte[]> patterns = stringToBytes(searchInfo.getStringToSearch());
+		//check patterns fit into search range
+		
+		// calculate sum for every string
+		
+		// calculate first sum(s) at start position
+		
+		// go along file positions keeping track of the state (within or out of a string)
+		// and recalculate the sum(s)
+		
+			// if sum matches, check every byte for this potential match
+		
+			// if match is found, add it to searchInfo and return
+		
+		// if match is not found add -1 match pos to search info
+		
+	}
+
+	/**
+	 * Convert given string into one, two or three arrays of bytes using
+	 * <code>charset</code> of the reader. Several arrays are created because we
+	 * do not know if unicode symbols in file are encoded as is or with
+	 * backslash-u sequence.<br>
+	 * Also, we do not know what a string with backslash-u sequence is supposed
+	 * to mean. For example, "aa\u00C4a" string can be this exact string or it
+	 * can be intended to be a string with Ä in it.<br>
+	 * <br>
+	 * The list is sorted by array length.
+	 * 
+	 * @param str
+	 * @return
+	 */
+	private List<byte[]> stringToBytes(String str){
+		// TODO: create several arrays for strings with backslashes
+		// and one array for strings without backslashes
+		List<byte[]> ret = new ArrayList<byte[]>();
+		return ret;
+	}
+	
+	
 	/**
 	 * Check if there are bytes left to read
 	 * @return
 	 */
 	public boolean hasNext(){
-//		return byteBuffer.position()<= byteBuffer;
 		return hasNext; 
 	}
 
@@ -178,7 +233,7 @@ public class UTF8FileReader implements Closeable{
 	 * @throws IllegalFormatException
 	 *             if the file has no bytes to read
 	 */
-	protected byte getNextByte() throws IOException, IllegalFormatException{
+	byte getNextByte() throws IOException, IllegalFormatException{
 		if(!hasNext()){
 			throw new IllegalFormatException(
 					"Unexpected end of stream at pos " + filePos + " of file " + file.getPath());
@@ -212,7 +267,7 @@ public class UTF8FileReader implements Closeable{
 		if(currentMode != MODE_READING_ASCII_CHARS){
 			throw new RuntimeException("Cannot read bytes in current mode: "+currentMode);
 		}
-		// next position should always be < limit if hasNext==false
+		// next position should always be < limit if hasNext == true
 		// because byte buffer is reloaded automatically when next byte is read
 		// and buffer has nothing to read
 		return byteBuffer.get(byteBuffer.position());
@@ -347,7 +402,7 @@ public class UTF8FileReader implements Closeable{
 				//				reachedClosingQuote = false;
 				quoteScanResult.reset();
 				currentMode = MODE_READING_ASCII_CHARS;
-				return curChar;
+				//return curChar;
 			} else {
 				fillCharBufferUpToQuote();
 				debug("GetNextChar char buffer load: " + new String(
@@ -397,9 +452,15 @@ public class UTF8FileReader implements Closeable{
 		return curChar;
 	}
 
+	/**
+	 * Use this method to prepare the reader to read a string. Should be called after the 
+	 * opening quote has already been read.
+	 * @throws IOException
+	 * @throws IllegalFormatException
+	 */
 	protected void prepareForReadingAString()throws IOException, IllegalFormatException{
 		currentMode = MODE_READING_UTF8_CHARS;
-		stringReadingState.reset(StringReadingStateMachine.MODE_READ);
+		stringReadingState.reset(StringReadingStateMachine.MODE_READ_UTF8);
 		quoteScanResult.reset();
 		debug("Initial char buffer load: ");
 		fillCharBufferUpToQuote();
@@ -412,7 +473,6 @@ public class UTF8FileReader implements Closeable{
 					&& byteBuffer.position() == quoteScanResult.getClosingQuotePos()) {
 				quoteScanResult.reset();
 				currentMode = MODE_READING_ASCII_CHARS;
-				
 			}
 		}
 		debug(charBuffer.limit() + " chars decoded: "
@@ -489,10 +549,44 @@ public class UTF8FileReader implements Closeable{
 //		return filePos;
 //	}
 
+	/**
+	 * Validate the remaining portion of the string that is currently being read.<br>
+	 * <br>
+	 * IMPORTANT: the portion of string that has not been decoded so far is not
+	 * decoded further, so validation only proceeds for ASCII symbols of the
+	 * string, i.e. the proper char encoding is not validated - only the validity of
+	 * escape sequences and absence of control characters
+	 * 
+	 * @throws IllegalFormatException
+	 * @throws IOException
+	 */
+	protected void skipTheStringAndValidateASCII()throws IllegalFormatException, IOException{
+		if(!stringReadingState.isInFinalState()){
+			throw new RuntimeException(
+					"We should not have got here if the stringReadingState is in non-final state (i.e. in the middle of a backslash sequence)");
+		}
+		// validate chars remaining in char buffer
+		while(charBuffer.hasRemaining()){
+			stringReadingState.pushChar(charBuffer.get());
+		}
+		quoteScanResult.reset(); // do not need it anymore
+		currentMode = MODE_READING_ASCII_CHARS;
+		// change mode to ASCII but maintain the state
+		stringReadingState.changeMode(StringReadingStateMachine.MODE_CHECK_ASCII);
+		while(hasNext()){
+			byte b = peekNextByte();
+			if(b == '"' && !stringReadingState.isInEscapedSequence()){
+				break;
+			}
+			stringReadingState.pushByte(getNextByte());
+		}
+		stringReadingState.reset();
+	}
+	// TODO: if skip and validate won't be too slow - switch to using skipTheStringAndValidateASCII
 	protected void skipTheString() throws IOException, IllegalFormatException{
 		if(!stringReadingState.isInFinalState()){
 			throw new RuntimeException(
-					"We should not have got here if the stateCheck is in non-final state (i.e. in the middle of a backslash sequence)");
+					"We should not have got here if the stringReadingState is in non-final state (i.e. in the middle of a backslash sequence)");
 		}
 		// imitate reading char buffer up to the end - for consistency
 		charBuffer.position(charBuffer.limit());
@@ -690,6 +784,5 @@ public class UTF8FileReader implements Closeable{
 			scanned = wasScanned;
 		}
 	}
-
 }
 

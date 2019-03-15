@@ -61,7 +61,7 @@ import com.bigjson.parser.JSONNode;
  */
 @SuppressWarnings("serial")
 public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
-	private static final String loadFileStr = "Load tree from JSON file";
+//	private static final String loadFileStr = "Load tree from JSON file";
 	private static final int stringDisplayLength = 100;
 	private static final String defaultFileFolder = "C:/Users/nikanka/JSONViewer/JSONFiles";
 	
@@ -103,26 +103,33 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	}
 	private JMenuBar createMenuBar(){
 		JMenuBar menuBar = new JMenuBar();
-		JMenu menu = new JMenu("File");
-		JMenuItem menuItem = new JMenuItem(loadFileStr);
-		menu.add(menuItem);
-		menuBar.add(menu);
+		JMenu fileMenu = new JMenu("File");
+		JMenu loadFileMenu = new JMenu("Load tree from JSON file");
+		JMenuItem justLoadItem = new JMenuItem("Just load");
+		JMenuItem validateItem = new JMenuItem("Load and vaidate (can take more time)");
+		loadFileMenu.add(justLoadItem);
+		loadFileMenu.add(validateItem);
+		fileMenu.add(loadFileMenu);
+		menuBar.add(fileMenu);
 		JFileChooser fileChooser = new JFileChooser(defaultFileFolder);
-		menuItem.addActionListener(new ActionListener() {
-			
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				int returnVal = fileChooser.showOpenDialog(JSONTreeViewPanel.this);
-
-		        if (returnVal == JFileChooser.APPROVE_OPTION) {
-		            File file = fileChooser.getSelectedFile();
-		            loadTreeFromFile(file);
-		        } 
-				
+		justLoadItem.addActionListener(e -> {
+			int returnVal = fileChooser.showOpenDialog(JSONTreeViewPanel.this);
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+				File file = fileChooser.getSelectedFile();
+				loadTreeFromFile(file, false);
+			}
+		});
+		validateItem.addActionListener(e -> {
+			int returnVal = fileChooser.showOpenDialog(JSONTreeViewPanel.this);
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+				File file = fileChooser.getSelectedFile();
+				loadTreeFromFile(file, true);
 			}
 		});
 		return menuBar;
 	}
+	
+	
 	private void init(){
 		// text field on top: which file is viewed
 		JPanel topPanel = new JPanel();
@@ -181,17 +188,17 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 				Object selComp = selPath.getLastPathComponent();
 				if (selComp instanceof JSONTreeNode) {
 					JSONTreeNode selNode = (JSONTreeNode) selComp;
-					if (!selNode.getJSONNode().isFullyLoaded() && selNode.getJSONNode().getType() == JSONNode.TYPE_STRING) {
+//					if (!selNode.getJSONNode().isFullyLoaded() && selNode.getJSONNode().getType() == JSONNode.TYPE_STRING) {
 						nodeMenu.setClickedNode(selNode);
 						nodeMenu.show(e.getComponent(), e.getX(), e.getY());
-					}
+//					}
 				}
 			}
 
 		};
 	}
 
-	private void loadTreeFromFile(File file){
+	private void loadTreeFromFile(File file, boolean validate){
 		// close previous loader
 		if(backend != null){
 			try{
@@ -205,7 +212,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		try{
 			backend = new JSONLoader(file, stringDisplayLength);
 			long t1 = System.currentTimeMillis();
-			JSONTreeNode rootNode = new JSONTreeNode(backend.getRoot());
+			JSONTreeNode rootNode = new JSONTreeNode(validate ? backend.getRootAndValidate() : backend.getRoot());
 			System.out.println("Load root and children: "+(System.currentTimeMillis() - t1)/1000 + " s");
 //			treeModel = new DefaultTreeModel(rootNode, true);
 			initTreeModel(rootNode);
@@ -214,11 +221,14 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			showDialog("An IOException occured while reading new file: "+e.getMessage());
 			return;
 		}catch(IllegalFormatException e){
-			showDialog("An IllegalFormatException occured while parsing the file: "+e.getMessage());
+			showDialog("An IllegalFormatException occured while loading the file: "+e.getMessage());
 			return;
 		}
 		fileInfoField.setText(file.getName());
 		fileInfoField.setToolTipText(file.getAbsolutePath());
+		if(validate){
+			showDialog("File " + file.getName() + " has been successfully validated");
+		}
 	}
 	
 	private void initTreeModel(JSONTreeNode root){
@@ -227,8 +237,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 		treeView.collapseRow(0);
 		treeView.addTreeWillExpandListener(this);
 		treeView.addMouseListener(nodeMenuMouseListener);
-		treeView.getSelectionModel().setSelectionMode
-        (TreeSelectionModel.SINGLE_TREE_SELECTION);
+		treeView.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
 		treeView.addTreeSelectionListener((TreeSelectionEvent e) -> {
 			JSONTreeNode treeNode = (JSONTreeNode) treeView.getLastSelectedPathComponent();
 			if (treeNode == null || !treeNode.getJSONNode().isLeaf()) {
@@ -301,19 +310,36 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	}
 
 	private class PopupMenu extends JPopupMenu implements ActionListener{
-		JSONTreeNode clickedNode = null;
+		private JSONTreeNode clickedNode = null;
+		private JMenuItem loadStrItem;
+		private JMenuItem validateItem;
 	    public PopupMenu(){
-	    	JMenuItem loadStr = new JMenuItem("Load Full String");
-	    	loadStr.addActionListener(this);
-	        this.add(loadStr);
+	    	validateItem = new JMenuItem("Validate");
+	    	loadStrItem = new JMenuItem("Load Full String");
+			validateItem.addActionListener(e -> {
+				try {
+					IllegalFormatException ex = backend.validateNode(clickedNode.getJSONNode());
+					if (ex != null) {
+						showDialog("A problem with the node format was detected: " + ex.getMessage());
+					} else {
+						showDialog("The format of the node was succesfully validated.");
+					}
+				} catch (Exception ex) {
+					showDialog(ex.getClass() + " occured while validating the node: " + ex.getMessage());
+				}
+			});
+	    	loadStrItem.addActionListener(e -> loadFullStringForNode(clickedNode));
+	        this.add(validateItem);
+	        this.add(loadStrItem);
 	    }
 	    
 	    void setClickedNode(JSONTreeNode node){
 	    	this.clickedNode = node;
+	    	loadStrItem.setVisible(!clickedNode.getJSONNode().isFullyLoaded() && clickedNode.getJSONNode().getType() == JSONNode.TYPE_STRING);
 	    }
 		@Override
 		public void actionPerformed(ActionEvent e) {
-			String str = loadFullStringForNode(clickedNode);
+			loadFullStringForNode(clickedNode);
 		}
 	}
 	

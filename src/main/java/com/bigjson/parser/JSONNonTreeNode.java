@@ -13,7 +13,19 @@ public class JSONNonTreeNode implements JSONNode{
 	private int type;
 	private String value;
 	private String name;
+	/**
+	 * File position of the first symbol of a node (opening quote of its name
+	 * or its value if it has no name)
+	 */
 	private long startPos;
+	/**
+	 * File position of the first symbol of node value. Can be equal to the
+	 * startPos if node has no name.
+	 */
+	private long valuePos;
+	/**
+	 * File position of the last symbol of a node
+	 */
 	private long endPos;
 	private boolean isFullyLoaded = true;
 	
@@ -57,6 +69,7 @@ public class JSONNonTreeNode implements JSONNode{
 	public JSONNode createNodeCopyWithFullyLoadedValue(String newVal) {
 		JSONNonTreeNode ret = new JSONNonTreeNode(getType(), getName(), true, newVal);
 		ret.startPos = this.startPos;
+		ret.valuePos = this.valuePos;
 		ret.endPos = this.endPos;
 		return ret;
 	}
@@ -69,8 +82,16 @@ public class JSONNonTreeNode implements JSONNode{
 		return endPos;
 	}
 	
+	public long getValueFilePosition() {
+		return valuePos;
+	}
+	
 	protected void setStartFilePosition(long pos){
 		this.startPos = pos;
+	}
+	
+	protected void setValueFilePosition(long pos){
+		this.valuePos = pos;
 	}
 	
 	protected void setEndFilePosition(long pos){
@@ -95,4 +116,5 @@ public class JSONNonTreeNode implements JSONNode{
 	public String getValue() {
 		return value;
 	}
+	
 }
