@@ -34,7 +34,7 @@ public class UTF8FileReaderTest {
  
 	@Test 
 	public void shouldFindClosingQuotes() throws IOException, IllegalFormatException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		StringWithCoords[] strings = createFileWithStrings(file, 100, 1000, false);
 //		System.out.println(Arrays.toString(strings));
 		try(UTF8FileReader reader = new UTF8FileReader(file)){
@@ -54,7 +54,7 @@ public class UTF8FileReaderTest {
 	
 	@Test 
 	public void shouldThrowIllegalFormatExceptionWhenStringIsNotClosed()throws IOException, IllegalFormatException{
-		File file= TestUtils.getGeneratedFileName();
+		File file= TestUtils.getGeneratedTestFile();
 		StringWithCoords[] strings = createFileWithStrings(file, 1, 10000, true);
 		try(UTF8FileReader reader = new UTF8FileReader(file)){
 			StringWithCoords s = strings[1];// skip the zero-length string

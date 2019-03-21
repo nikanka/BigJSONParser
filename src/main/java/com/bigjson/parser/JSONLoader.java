@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import org.json.JSONException;
+
 /**
  * This class serves as an interface for the library, allowing to initialize 
  * parser, load the root of the JSON tree and children for a given node on demand. 
@@ -14,7 +16,8 @@ import java.util.List;
  *
  */
 public class JSONLoader implements Closeable {
-	private LazyJSONParser parser;
+	private LazyJSONParser parser; 
+	private JSONSearch search;
 	
 	public JSONLoader(File file, int stringDisplayLimit) throws IOException, IllegalFormatException{
 		this(file, null, stringDisplayLimit);
@@ -40,6 +43,7 @@ public class JSONLoader implements Closeable {
 	 */
 	public JSONLoader(File file, String topLevelName, int stringDisplayLimit) throws IOException, IllegalFormatException{
 		parser = new LazyJSONParser(file, topLevelName, stringDisplayLimit);
+		search = new JSONSearch(parser.getReader());
 //		long t1 = System.currentTimeMillis();
 //		root = parser.getRoot();
 //		System.out.println("LoadTime for the root: "+(System.currentTimeMillis() - t1)/1000 + " s");
@@ -65,9 +69,9 @@ public class JSONLoader implements Closeable {
 	 * Search for the next occurrence of the string specified in
 	 * <code>searchInfo</code> within the search range (also specified in
 	 * <code>searchInfo</code>), if the search is not finished yet (
-	 * <code>searchInfo.searchIsFinished() == false</code>). The match should
-	 * fit completely in the search range <br>
-	 * Save new search result in the <code>searchInfo</code> object
+	 * <code>searchInfo.searchIsFinished() == false</code>). <br>
+	 * Save new search result in the <code>searchInfo</code> object.<br><br>
+	 * See more info in the doc for {@link #startNewSearch(String, long, long, boolean, boolean) startNewSearch}
 	 * 
 	 * @param searchInfo
 	 *            object containing information about search of specified string
@@ -77,20 +81,21 @@ public class JSONLoader implements Closeable {
 	 *            <code>searchInfo.searchIsFinished()</code>.
 	 * @throws IOException
 	 */
-	public void findNextMatch(StringSearchInfo searchInfo) throws IOException{
+	public void findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
 		if(!searchInfo.searchIsFinished()){
-			parser.getReader().findNextMatch(searchInfo);
+			search.findNextMatch(searchInfo);
 		}
 	}
 	
 	/**
-	 * Start a new search of <code>stringToSearch</code> within range
+	 * Start a new search of <code>stringToSearch</code> in leaf nodes (string,
+	 * number, null, false and true tokens) and names of objects within range
 	 * <code>[searchStartPos, searchEndPos)</code> of a file. The match should
-	 * fit completely in this range.<br>
+	 * fit completely in this range and be completely within a token.<br>
 	 * <br>
-	 * IMPORTANT: the start position of a search (<code>searchStartPos</code>) should  
-	 * be outside of a string. 
-	 * TODO: A match should be completely within a value or a name.
+	 * IMPORTANT: the start position of a search (<code>searchStartPos</code>)
+	 * should be outside of a searchable token (i.e. outside of object names and
+	 * string, number, null, false and true tokens).
 	 * 
 	 * @param stringToSearch
 	 *            string to be found
@@ -101,13 +106,22 @@ public class JSONLoader implements Closeable {
 	 *            exclusive end position of the search (position of the last
 	 *            byte of a match should be smaller than
 	 *            <code>searchEndPos</code>)
+	 * @param caseSensitive
+	 *            if the search should be case-sensitive
+	 * @param searchForAltUnicode
+	 *            if true also search for alternative string with non-ASCII
+	 *            symbols substituted by one or two \\uhhhh sequences (where h is
+	 *            a hex digit).
 	 * @return an object containing information about the search including the
 	 *         first match (if any). To check whether a match was found use
 	 *         <code>searchInfo.searchIsFinished()</code>.
 	 * @throws IOException
 	 */
-	public StringSearchInfo startNewSearch(String stringToSearch, long searchStartPos, long searchEndPos) throws IOException{
-		StringSearchInfo searchInfo = StringSearchInfo.createNewSearch(stringToSearch, searchStartPos, searchEndPos);
+	// TODO: add some type of ID to connect search with the reader/file 
+	public StringSearchInfo startNewSearch(String stringToSearch, long searchStartPos, long searchEndPos,
+			boolean caseSensitive, boolean searchForAltUnicode) throws IOException, IllegalFormatException {
+		StringSearchInfo searchInfo = search.createNewSearch(stringToSearch, searchStartPos, searchEndPos,
+				caseSensitive, searchForAltUnicode);
 		findNextMatch(searchInfo);
 		return searchInfo;
 	}
@@ -121,13 +135,16 @@ public class JSONLoader implements Closeable {
 	 *            string to be found
 	 * @param node
 	 *            a node that sets the range of a search
-	 * @return an object containing information about the search
+	 * @return an object containing information about the search (parameters and results)
 	 * @throws IOException
 	 */
-	public StringSearchInfo startNewSearchWithinANode(String stringToSearch, JSONNode node)throws IOException{
-		return startNewSearch(stringToSearch, node.getStartFilePosition(), node.getEndFilePosition() + 1);
+	public StringSearchInfo startNewSearchWithinANode(String stringToSearch, JSONNode node, boolean caseSensitive,
+			boolean searchForAltUnicode) throws IOException, IllegalFormatException {
+		return startNewSearch(stringToSearch, node.getStartFilePosition(), node.getEndFilePosition() + 1, caseSensitive,
+				searchForAltUnicode);
 	}
-//	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{
+
+	//	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{
 //		return parser.loadChildrenAtPosition(pos);
 //	}
 	/**
@@ -137,6 +154,7 @@ public class JSONLoader implements Closeable {
 	 * @throws IOException
 	 * @throws IllegalFormatException
 	 */
+	// TODO: add some type of ID to connect parser with the reader/file
 	public List<JSONNode> loadChildren(JSONNode node) throws IOException, IllegalFormatException{
 		if(node == null || node.isLeaf()){
 			return null;

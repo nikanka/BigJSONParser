@@ -1,5 +1,6 @@
 package com.bigjson.parser;
 
+import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -23,26 +24,90 @@ public class StringSearchInfo {
 	
 	private boolean searchIsFinished = false;
 	
+	private boolean caseSensitive;
+	private boolean searchForAltUnicode;
+	private Charset charset;
+	private List<BytePatternMatcher> patterns;
 
-	private StringSearchInfo(String stringToSearch, long searchStartPos, long searchEndPos){
+	private long nextSearchShift = 1;
+	
+
+	private StringSearchInfo(String stringToSearch, long searchStartPos, long searchEndPos, boolean caseSensitive,
+			boolean searchForAltUnicode, Charset charset) {
+		if(stringToSearch.length() == 0){
+			throw new IllegalArgumentException("Cannot search for an empty string");
+		}
+		if(searchEndPos <= searchStartPos){
+			throw new IllegalArgumentException("Search end pos should be bigger than search start pos (got ["
+					+ searchStartPos + ", " + searchEndPos + "))");
+		}
 		this.stringToSearch = stringToSearch;
 		this.searchStartPos = searchStartPos;
 		this.searchEndPos = searchEndPos;
 		this.matchPositions = new LinkedList<Long>();
+		this.caseSensitive = caseSensitive;
+		this.searchForAltUnicode = searchForAltUnicode;
+		this.charset = charset;
+		this.patterns = BytePatternMatcher.createPatternsForString(stringToSearch, charset, caseSensitive, searchForAltUnicode);
+		/*
+		 * Check if the first byte of the first pattern if a backslash.
+		 * If so, the next byte is an escaped one and has no meaning by itself, 
+		 * so we can skip it. This will help with the situations like this:
+		 * user searches for a backslash, in file it looks like two backslashes. After
+		 * first find the searcher starts to search starting from the second backslash (if
+		 * start searching form the next byte) and thinks this is the first backslash, so 
+		 * bytes that are not allowed after the backslash may cause an exception or a 
+		 * closing quote may be taken for an escaped quote
+		 */
+		// TODO: maybe just not use string state machine?
+		if(patterns.get(0).getTargetBytes()[0] == '\\'){
+			nextSearchShift = 2;
+		}
 	}
 	
-	public static StringSearchInfo createNewSearch(String stringToSearch, long searchStartPos, long searchEndPos){
-		return new StringSearchInfo(stringToSearch, searchStartPos, searchEndPos);
+	/**
+	 * IMPORTANT: the start position of a search should not be inside of a string, a keyword
+	 * (null, false, true) or a number.
+	 * @param stringToSearch
+	 * @param searchStartPos
+	 * @param searchEndPos
+	 * @param caseSensitive
+	 * @param searchForAltUnicode
+	 * 
+	 * @return
+	 * @throws IllegalArgumentException
+	 *             if the string to search is empty or if search end pos is not
+	 *             bigger than search start pos
+	 */
+	public static StringSearchInfo createNewSearch(String stringToSearch, long searchStartPos, long searchEndPos,
+			boolean caseSensitive, boolean searchForAltUnicode, Charset charset) {
+		return new StringSearchInfo(stringToSearch, searchStartPos, searchEndPos, caseSensitive, searchForAltUnicode, charset);
 	}
 
 	public String getStringToSearch() {
 		return stringToSearch;
 	}
 
+	public boolean isCaseSensitive(){
+		return caseSensitive;
+	}
+	
+	public boolean searchForAltUnicode(){
+		return searchForAltUnicode;
+	}
+	
+	public Charset getCharset(){
+		return charset;
+	}
+	
 	public long getSearchStartPos() {
 		return searchStartPos;
 	}
 
+	/**
+	 * Exclusive
+	 * @return
+	 */
 	public long getSearchEndPos() {
 		return searchEndPos;
 	}
@@ -63,7 +128,7 @@ public class StringSearchInfo {
 	}
 	
 	public long getCurSearchStartPos(){
-		return Math.max(searchStartPos, getLastMatchPos() + 1);
+		return Math.max(searchStartPos, getLastMatchPos() + nextSearchShift );
 	}
 	
 	/**
@@ -112,5 +177,9 @@ public class StringSearchInfo {
 			matchPositions.removeFirst();
 		}
 		isLastMatchWitninString = isWithinString;
+	}
+
+	public List<BytePatternMatcher> getPatterns() {
+		return patterns;
 	}
 }

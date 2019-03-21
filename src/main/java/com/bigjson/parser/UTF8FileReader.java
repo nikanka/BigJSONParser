@@ -102,10 +102,13 @@ public class UTF8FileReader implements Closeable{
 	}
 	
 	/**
-	 * Set this file channel to a position <code>pos</code>, so that the next byte that is read
-	 * is at the position <code>pos</code> of the file.
+	 * Set this file channel to a position <code>pos</code>, so that the next
+	 * byte that is read is at the position <code>pos</code> of the file.<br>
+	 * Mode is set to reading ASCII.
+	 * 
 	 * @param pos
-	 * @return
+	 * @return true if there are bytes to read from file starting at a given pos
+	 *         (i.e. <code>pos</code> < fileSize)
 	 * @throws IOException
 	 */
 	boolean getToPosition(long pos)throws IOException{
@@ -132,6 +135,7 @@ public class UTF8FileReader implements Closeable{
 			hasNext = readBytes()>=0;
 		}
 		filePos = pos;
+		currentMode = MODE_READING_ASCII_CHARS;
 //		nextByte = input.read();
 //		return nextByte >= 0;
 		return hasNext;
@@ -161,53 +165,6 @@ public class UTF8FileReader implements Closeable{
 		debug("Byte buffer after reading: "+byteBuffer);
 		
 		return read;//byteBuffer.remaining();
-	}
-	
-	//TODO: implement this but first implement finite-state machine to track reading states 
-	// (a string value, a name, a number...) 
-	public void findNextMatch(StringSearchInfo searchInfo) throws IOException{
-		getToPosition(searchInfo.getLastMatchPos());
-		currentMode = MODE_READING_ASCII_CHARS;
-		
-		// preprocess the string (possibly get two strings as a result)
-		// and convert string(s) into byte array(s)
-		List<byte[]> patterns = stringToBytes(searchInfo.getStringToSearch());
-		//check patterns fit into search range
-		
-		// calculate sum for every string
-		
-		// calculate first sum(s) at start position
-		
-		// go along file positions keeping track of the state (within or out of a string)
-		// and recalculate the sum(s)
-		
-			// if sum matches, check every byte for this potential match
-		
-			// if match is found, add it to searchInfo and return
-		
-		// if match is not found add -1 match pos to search info
-		
-	}
-
-	/**
-	 * Convert given string into one, two or three arrays of bytes using
-	 * <code>charset</code> of the reader. Several arrays are created because we
-	 * do not know if unicode symbols in file are encoded as is or with
-	 * backslash-u sequence.<br>
-	 * Also, we do not know what a string with backslash-u sequence is supposed
-	 * to mean. For example, "aa\u00C4a" string can be this exact string or it
-	 * can be intended to be a string with Ä in it.<br>
-	 * <br>
-	 * The list is sorted by array length.
-	 * 
-	 * @param str
-	 * @return
-	 */
-	private List<byte[]> stringToBytes(String str){
-		// TODO: create several arrays for strings with backslashes
-		// and one array for strings without backslashes
-		List<byte[]> ret = new ArrayList<byte[]>();
-		return ret;
 	}
 	
 	
@@ -404,9 +361,14 @@ public class UTF8FileReader implements Closeable{
 				currentMode = MODE_READING_ASCII_CHARS;
 				//return curChar;
 			} else {
-				fillCharBufferUpToQuote();
-				debug("GetNextChar char buffer load: " + new String(
-						Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+				try{
+					fillCharBufferUpToQuote();
+					debug("GetNextChar char buffer load: " + new String(
+							Arrays.copyOfRange(charBuffer.array(), charBuffer.position(), charBuffer.limit())));
+				} catch (Exception e){
+					currentMode = MODE_READING_ASCII_CHARS;
+					throw e;	
+				}
 			}
 		}
 		return curChar;
@@ -463,7 +425,12 @@ public class UTF8FileReader implements Closeable{
 		stringReadingState.reset(StringReadingStateMachine.MODE_READ_UTF8);
 		quoteScanResult.reset();
 		debug("Initial char buffer load: ");
-		fillCharBufferUpToQuote();
+		try{
+			fillCharBufferUpToQuote();
+		} catch(Exception e){
+			currentMode = MODE_READING_ASCII_CHARS;
+			throw e;
+		}
 		if (!charBuffer.hasRemaining()){
 			// if byte buffer was read (decoded) up to quote we do not need to
 			// reload char buffer (alternatively byte buffer can be decoded up to

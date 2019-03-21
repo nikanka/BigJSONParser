@@ -35,7 +35,7 @@ public class LazyJSONParserTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAndSlash()throws IOException, IllegalFormatException {
 		// prepare file
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		String str1 = "aa";
 		String str2 = "\"bbb";
@@ -52,7 +52,7 @@ public class LazyJSONParserTest {
 	
 	@Test
 	public void shouldReadNonAsciStrings()throws IOException, IllegalFormatException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), 
 				Charset.forName("UTF-8").newEncoder());
 		List<String> strings = new ArrayList<String>();
@@ -71,7 +71,7 @@ public class LazyJSONParserTest {
 	}
 	@Test
 	public void shouldReadEmplyAndLongStrings()throws IOException, IllegalFormatException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), 
 				Charset.forName("UTF-8").newEncoder());
 		List<String> strings = new ArrayList<String>();
@@ -93,7 +93,7 @@ public class LazyJSONParserTest {
 	@Test
 	public void shouldReadStringWithQuoteAtByteBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.BUFFER_SIZE-1];
 		Arrays.fill(prefix, 's');
@@ -109,7 +109,7 @@ public class LazyJSONParserTest {
 	@Test
 	public void shouldReadStringWithQuoteAtCharBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.BUFFER_SIZE];
 		Arrays.fill(prefix, 's');
@@ -125,7 +125,7 @@ public class LazyJSONParserTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtByteBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.BUFFER_SIZE-2];
 		
@@ -144,7 +144,7 @@ public class LazyJSONParserTest {
 	@Test
 	public void shouldReadStringWithEscapedQuoteAtCharBufferEdge()throws IOException, IllegalFormatException {
 		// prepare file
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		char[] prefix = new char[UTF8FileReader.BUFFER_SIZE-1];
 		Arrays.fill(prefix, 's');
@@ -161,7 +161,7 @@ public class LazyJSONParserTest {
 	}
 	@Test
 	public void shouldReadStringWithEscapedBackslashAndQuotes()throws IOException, IllegalFormatException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		List<String> strings = new ArrayList<String>();
 		// will be ..."aaa\\aaa"... in file -> should read as 'aaa\aaa'
@@ -230,7 +230,7 @@ public class LazyJSONParserTest {
 	}
 	
 	private void expectIllegalFormatExceptionWhileRootValidation(String json, int strDisplayLen) throws IOException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		fw.write(json);
 		fw.close();
@@ -254,7 +254,7 @@ public class LazyJSONParserTest {
 	}
 
 	private IllegalFormatException validateInnerNode(String json, int strDisplayLen, int nodeStart, int nodeEnd) throws IOException, IllegalFormatException {
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		fw.write(json);
 		fw.close();
@@ -265,7 +265,7 @@ public class LazyJSONParserTest {
 	}
 	
 	private void validateImmideateRootChildren(String json, int strDisplayLen) throws IOException, IllegalFormatException {
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		fw.write(json);
 		fw.close();
@@ -295,7 +295,7 @@ public class LazyJSONParserTest {
 	}
 	
 	private void readStringAtFilePos(String str, int from, int to, Class exceptionClass)  throws IOException, IllegalFormatException{
-		File file = TestUtils.getGeneratedFileName();
+		File file = TestUtils.getGeneratedTestFile();
 		FileWriter fw = new FileWriter(file);
 		fw.write('"');
 		fw.write(str);
