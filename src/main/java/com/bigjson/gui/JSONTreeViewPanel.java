@@ -2,54 +2,31 @@ package com.bigjson.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.awt.Insets;
-import java.awt.LayoutManager;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.event.WindowListener;
 import java.io.File;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.List;
 
 import javax.swing.BorderFactory;
-import javax.swing.GroupLayout;
 import javax.swing.JButton;
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextPane;
 import javax.swing.JTree;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.border.EtchedBorder;
 import javax.swing.event.TreeExpansionEvent;
-import javax.swing.event.TreeModelEvent;
-import javax.swing.event.TreeModelListener;
 import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
 import javax.swing.event.TreeWillExpandListener;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
-import com.bigjson.parser.IllegalFormatException;
-import com.bigjson.parser.JSONLoader;
 import com.bigjson.parser.JSONNode;
 
 /**
@@ -60,13 +37,8 @@ import com.bigjson.parser.JSONNode;
  *
  */
 @SuppressWarnings("serial")
-public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
-//	private static final String loadFileStr = "Load tree from JSON file";
-	private static final int stringDisplayLength = 100;
-	private static final String defaultFileFolder = "C:/Users/nikanka/JSONViewer/JSONFiles";
-	
-	private DefaultTreeModel treeModel;
-	private JSONLoader backend;
+public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{	
+	private JSONTreeViewData treeViewData;
 	
 	private JScrollPane scrollPane;
 	private JTree treeView;
@@ -75,61 +47,165 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	private JLabel fileInfoField;
 	private JTextArea nodeValueTextArea;
 	private JButton loadFullStringBtn;
-
-	public static void main(String[] args) throws IOException {
-		createAndShowGUI();
-	}
 	
-	private static void createAndShowGUI() {
-		JFrame frame = new JFrame("JSON Tree View");
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	private JDialog createSearchDialog(JSONNode node) {
+		if (node == null){
+			node = ((JSONTreeNode)treeViewData.getTreeModel().getRoot()).getJSONNode();
+		}
+		System.out.println("Open search dialog for node " + node.getName() + " (" + node.getStartFilePosition() + ", "
+		+ node.getEndFilePosition() + ")");
 		
-        //Create and set up the content pane
-		JSONTreeViewPanel treeViewer = new JSONTreeViewPanel();
-		// TODO make several tabs so can load several files 
-        frame.setJMenuBar(treeViewer.createMenuBar());
-        frame.setContentPane(treeViewer);
- 
-        //Display the window.
-        frame.setSize(1000, 800);
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); 
-        frame.setVisible(true);
-    }
+		return new SearchDialog(null, node.getStartFilePosition(), node.getEndFilePosition() + 1, treeViewData);
+		
+		
+//		JDialog searchDialog = new JDialog(mainFrame, "Search");
+//		searchDialog.setLocation(400, 300);
+//		Container cp = searchDialog.getContentPane();
+//		// find panel
+//		JPanel pFind = new JPanel();
+//		pFind.setLayout(new BoxLayout(pFind, BoxLayout.Y_AXIS));
+//		// TODO: remember previous searches 
+//		JComboBox<StringSearchInfo> comboFind = new JComboBox<StringSearchInfo>(cachedSearches);
+//		comboFind.addItemListener(e -> {
+//			if(e.getStateChange() == ItemEvent.SELECTED){
+//				StringSearchInfo selSearch = (StringSearchInfo)e.getItem();//(StringSearchInfo)((JComboBox)e.getSource()).getModel().getSelectedItem();
+////				finalizeCurrentSearch();
+//				currentSearch = selSearch;
+//			}
+//		});
+//		
+//		comboFind.setEditable(true);
+//		comboFind.setMaximumSize(new Dimension(500, 30));
+//		JLabel lFind = new JLabel("Find: ");
+//		JLabel lFound = new JLabel("");
+//		lFind.setAlignmentX(0);
+//        pFind.add(lFind);
+//        pFind.setAlignmentX(0);
+//        pFind.add(comboFind);
+//        pFind.add(lFound);
+//        // options panel
+//        JPanel pOptions = new JPanel(new GridLayout(2, 1));
+//        pOptions.setBorder(BorderFactory.createTitledBorder("Options"));
+//        JCheckBox caseSensChBox = new JCheckBox("Case sensitive");
+//        JCheckBox altUnicodeChBox = new JCheckBox("Search for alternative non-ASCII encoding");
+//        pOptions.add(caseSensChBox);
+//        pOptions.add(altUnicodeChBox);
+//        // buttons
+//        JPanel pButtons = new JPanel(new FlowLayout(FlowLayout.CENTER));
+//        JButton btnPrev = new JButton("Go To Previous Match");
+//        btnPrev.setEnabled(false);
+//        JButton btnFind = new JButton("Find");
+//        JButton btnStart = new JButton("Start New Search");
+//        btnStart.setEnabled(false);
+//        JButton btnClose = new JButton("Close");
+//        pButtons.add(btnPrev);
+//        pButtons.add(btnFind);
+//        pButtons.add(btnStart);
+//        pButtons.add(btnClose);
+//        
+//        btnFind.addActionListener(e -> {
+//        	if(currentSearch == null){
+//        		caseSensChBox.setEnabled(false);
+//            	altUnicodeChBox.setEnabled(false);
+//            	comboFind.setEnabled(false);
+////            	String toSearch = (String)comboFind.getSelectedItem();
+//            	String toSearch = (String)comboFind.getEditor().getItem();
+//            	startNewSearch(toSearch, node, caseSensChBox.isSelected(), altUnicodeChBox.isSelected());
+//        	}
+//        	btnStart.setEnabled(true);
+//        	if(!findNextMatch()){
+//        		btnFind.setEnabled(false);
+//        		lFound.setText("No more matches found");
+//        	} else {
+//        		lFound.setText("Found a match at pos " + currentSearch.getLastMatchPos());
+//        	}
+//        	if(currentSearch.getLastMatchPos() >= 0){
+//        		btnPrev.setEnabled(true);
+//        	}
+//        });
+//        btnStart.addActionListener(e -> {
+//        	caseSensChBox.setEnabled(true);
+//        	altUnicodeChBox.setEnabled(true);
+//        	comboFind.setEnabled(true);     
+//        	btnPrev.setEnabled(false);
+//        	btnFind.setEnabled(true);
+//        	lFound.setText("");
+//        	currentSearch = null;
+//        });
+//        btnClose.addActionListener(e -> {
+//        	finalizeCurrentSearch();
+//        	searchDialog.dispose();
+//        });
+//        // center panel: find + options
+//        JPanel pCenter = new JPanel(new GridLayout(2, 1));
+//        pCenter.add(pFind);
+//        pCenter.add(pOptions);
+//        // south panel: buttons
+//        cp.add(pCenter, BorderLayout.CENTER);
+//        cp.add(pButtons, BorderLayout.SOUTH);
+//        searchDialog.pack();
+//        
+//        searchDialog.setDefaultCloseOperation(
+//			    JDialog.DO_NOTHING_ON_CLOSE);
+//        searchDialog.addWindowListener(new WindowAdapter() {
+//			    public void windowClosing(WindowEvent e) {
+//			    	finalizeCurrentSearch();
+//			    	e.getWindow().dispose();
+//			    }
+//			});
+//		return searchDialog;
+	}
+	
+//	private void finalizeCurrentSearch(){
+//		// TODO check is this search is already cached
+//		cachedSearches.addElement(currentSearch);
+//		currentSearch = null;
+//	}
+
+//	/**
+//	 * Return true if search is not finished
+//	 * @return
+//	 */
+//	private boolean findNextMatch(){
+//		try{
+//			backend.findNextMatch(currentSearch);
+//		}catch(IOException ex){
+//			showDialog("An IOException occured while searching: "+ex.getMessage());
+//			return false;
+//		}catch(IllegalFormatException ex){
+//			showDialog("An IllegalFormatException occured while searching: "+ex.getMessage());
+//			return false;
+//		}
+//		long pos = currentSearch.getLastMatchPos();
+//		if(pos >= 0){
+//			openLastNodeContainingPos(pos);
+//		}
+//		// TODO : open node with the match
+//		return !currentSearch.searchIsFinished();
+//	}
+//	
 	
 
-	public JSONTreeViewPanel() {
+	private void expandNode(JSONTreeNode treeNode) {
+		TreePath path = new TreePath(treeNode.getPath());
+		treeView.expandPath(path);
+		treeView.setSelectionPath(path);
+		treeView.scrollPathToVisible(path);
+	}
+
+	
+
+	public JSONTreeViewPanel(File file, boolean validate) {
 		super(new BorderLayout());
+//		this.mainFrame = frame;
 		init();
+		treeViewData = new JSONTreeViewData(file, validate);
+		initTreeModel();
+		fileInfoField.setText(file.getName());
+		fileInfoField.setToolTipText(file.getAbsolutePath());
+
 	}
-	private JMenuBar createMenuBar(){
-		JMenuBar menuBar = new JMenuBar();
-		JMenu fileMenu = new JMenu("File");
-		JMenu loadFileMenu = new JMenu("Load tree from JSON file");
-		JMenuItem justLoadItem = new JMenuItem("Just load");
-		JMenuItem validateItem = new JMenuItem("Load and vaidate (can take more time)");
-		loadFileMenu.add(justLoadItem);
-		loadFileMenu.add(validateItem);
-		fileMenu.add(loadFileMenu);
-		menuBar.add(fileMenu);
-		JFileChooser fileChooser = new JFileChooser(defaultFileFolder);
-		justLoadItem.addActionListener(e -> {
-			int returnVal = fileChooser.showOpenDialog(JSONTreeViewPanel.this);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				File file = fileChooser.getSelectedFile();
-				loadTreeFromFile(file, false);
-			}
-		});
-		validateItem.addActionListener(e -> {
-			int returnVal = fileChooser.showOpenDialog(JSONTreeViewPanel.this);
-			if (returnVal == JFileChooser.APPROVE_OPTION) {
-				File file = fileChooser.getSelectedFile();
-				loadTreeFromFile(file, true);
-			}
-		});
-		return menuBar;
-	}
-	
-	
+
 	private void init(){
 		// text field on top: which file is viewed
 		JPanel topPanel = new JPanel();
@@ -158,9 +234,11 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
         nodeValuePanel.setLayout(new BorderLayout());
         loadFullStringBtn = new JButton("Load Full String");
 		loadFullStringBtn.addActionListener(e -> {
-			JSONTreeNode treeNode = (JSONTreeNode) treeView.getLastSelectedPathComponent();
+			TreePath selPath = treeView.getSelectionPath();
+			JSONTreeNode treeNode = (JSONTreeNode) selPath.getLastPathComponent();
 			if (treeNode != null) {
-				loadFullStringForNode(treeNode);
+				treeViewData.loadFullStringForNode(treeNode);
+				updateNodeValueTextArea(treeNode);
 			}
 		});
 		loadFullStringBtn.setEnabled(false);
@@ -185,279 +263,82 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 				if (selPath == null) {
 					return;
 				}
+				treeView.setSelectionPath(selPath);
 				Object selComp = selPath.getLastPathComponent();
 				if (selComp instanceof JSONTreeNode) {
 					JSONTreeNode selNode = (JSONTreeNode) selComp;
-//					if (!selNode.getJSONNode().isFullyLoaded() && selNode.getJSONNode().getType() == JSONNode.TYPE_STRING) {
-						nodeMenu.setClickedNode(selNode);
-						nodeMenu.show(e.getComponent(), e.getX(), e.getY());
-//					}
+					nodeMenu.setClickedNode(selNode);
+					nodeMenu.show(e.getComponent(), e.getX(), e.getY());
 				}
 			}
 
 		};
 	}
 
-	private void loadTreeFromFile(File file, boolean validate){
-		// close previous loader
-		if(backend != null){
-			try{
-				backend.close();
-			}catch(IOException e){
-				showDialog("An IOException occured while closing the previous file reader: " + e.getMessage());
-				return;
-			}
-		}
-		// create a loader for a given file
-		try{
-			backend = new JSONLoader(file, stringDisplayLength);
-			long t1 = System.currentTimeMillis();
-			JSONTreeNode rootNode = new JSONTreeNode(validate ? backend.getRootAndValidate() : backend.getRoot());
-			System.out.println("Load root and children: "+(System.currentTimeMillis() - t1)/1000 + " s");
-//			treeModel = new DefaultTreeModel(rootNode, true);
-			initTreeModel(rootNode);
-			loadChildrenForNode(rootNode);
-		}catch(IOException e){
-			showDialog("An IOException occured while reading new file: "+e.getMessage());
-			return;
-		}catch(IllegalFormatException e){
-			showDialog("An IllegalFormatException occured while loading the file: "+e.getMessage());
-			return;
-		}
-		fileInfoField.setText(file.getName());
-		fileInfoField.setToolTipText(file.getAbsolutePath());
-		if(validate){
-			showDialog("File " + file.getName() + " has been successfully validated");
-		}
-	}
-	
-	private void initTreeModel(JSONTreeNode root){
-		treeModel = new DefaultTreeModel(root, true);
-		treeView = new JTree(treeModel);
+	private void initTreeModel(){
+		treeView = new JTree(treeViewData.getTreeModel());
 		treeView.collapseRow(0);
 		treeView.addTreeWillExpandListener(this);
 		treeView.addMouseListener(nodeMenuMouseListener);
 		treeView.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
-		treeView.addTreeSelectionListener((TreeSelectionEvent e) -> {
-			JSONTreeNode treeNode = (JSONTreeNode) treeView.getLastSelectedPathComponent();
-			if (treeNode == null || !treeNode.getJSONNode().isLeaf()) {
-				nodeValueTextArea.setText("");
-				loadFullStringBtn.setEnabled(false);
-				return;
-			}
-			JSONNode node = treeNode.getJSONNode();
-			nodeValueTextArea.setText(node.getValue() + (node.isFullyLoaded() ? "" : "..."));
-			loadFullStringBtn.setEnabled(!node.isFullyLoaded());
-		});
+		treeView.addTreeSelectionListener((TreeSelectionEvent e) -> updateNodeValueTextArea(
+				(JSONTreeNode) treeView.getLastSelectedPathComponent()));
 		scrollPane.setViewportView(treeView);	
 	}
 	
-	
-	
-	private void showDialog(String message){
-		JOptionPane.showMessageDialog(null, message);
+	private void updateNodeValueTextArea(JSONTreeNode treeNode){
+		if (treeNode == null || !treeNode.getJSONNode().isLeaf()) {
+			nodeValueTextArea.setText("");
+			loadFullStringBtn.setEnabled(false);
+			return;
+		}
+		JSONNode node = treeNode.getJSONNode();
+		nodeValueTextArea.setText(node.getValue() + (node.isFullyLoaded() ? "" : "..."));
+		loadFullStringBtn.setEnabled(!node.isFullyLoaded());		
 	}
 
 	@Override
 	public void treeWillExpand(TreeExpansionEvent event) throws ExpandVetoException {
 		JSONTreeNode parent = (JSONTreeNode) event.getPath().getLastPathComponent();
-		try{
-			loadChildrenForNode(parent);
-		} catch(IOException e){
-			showDialog("IOException occured while loading children nodes: " + e.getMessage());
-		}catch(IllegalFormatException e){
-			showDialog("IllegalFormatException occured while loading children nodes: " + e.getMessage());
-		}
-	}
-
-	private void loadChildrenForNode(JSONTreeNode parent) throws IOException, IllegalFormatException{
-		if(!parent.getAllowsChildren() || parent.childrenAreLoaded()){
-			return;
-		}
-		long time = System.currentTimeMillis();
-		List<JSONNode> children = backend.loadChildren(parent.getJSONNode());
-		for(JSONNode child: children){
-			treeModel.insertNodeInto(new JSONTreeNode(child), parent, parent.getChildCount());
-		}
-		parent.setChildrenAreLoaded(true);
-		System.out.println("Load children for node " + parent + ": " + 
-							(System.currentTimeMillis() - time) / 1000 + " s");
+		treeViewData.loadChildrenForNode(parent);
+		
 	}
 	
 	@Override
 	public void treeWillCollapse(TreeExpansionEvent event) throws ExpandVetoException {
 		// do nothing
 	}
-	
-	private String loadFullStringForNode(JSONTreeNode treeNode){
-		JSONNode node = treeNode.getJSONNode();
-		try {
-			node = backend.loadNodeWithFullString(node);	
-		} catch (IOException e) {
-			showDialog(
-					"IOException occured while loading full string for " + treeNode.getUserObject() + ": " + e.getMessage());
 
-		} catch (IllegalFormatException e) {
-			showDialog("IllegalFormatException occured while loading full string for " + treeNode.getUserObject() + ": "
-					+ e.getMessage());
-		}
-		String str = node.getValue();
-		treeNode.setJSONNode(node);
-		treeModel.nodeChanged(treeNode);
-		nodeValueTextArea.setText(str);
-		loadFullStringBtn.setEnabled(false);
-		return str;
-	}
-
-	private class PopupMenu extends JPopupMenu implements ActionListener{
+	private class PopupMenu extends JPopupMenu{
 		private JSONTreeNode clickedNode = null;
 		private JMenuItem loadStrItem;
+		private JMenuItem searchItem;
 		private JMenuItem validateItem;
-	    public PopupMenu(){
-	    	validateItem = new JMenuItem("Validate");
+		
+		public PopupMenu(){
 	    	loadStrItem = new JMenuItem("Load Full String");
-			validateItem.addActionListener(e -> {
-				try {
-					IllegalFormatException ex = backend.validateNode(clickedNode.getJSONNode());
-					if (ex != null) {
-						showDialog("A problem with the node format was detected: " + ex.getMessage());
-					} else {
-						showDialog("The format of the node was succesfully validated.");
-					}
-				} catch (Exception ex) {
-					showDialog(ex.getClass() + " occured while validating the node: " + ex.getMessage());
-				}
-			});
-	    	loadStrItem.addActionListener(e -> loadFullStringForNode(clickedNode));
-	        this.add(validateItem);
-	        this.add(loadStrItem);
+	    	searchItem = new JMenuItem("Search...");
+	    	validateItem = new JMenuItem("Validate");
+	    	
+	    	searchItem.addActionListener(e -> {
+	    		// open search dialog
+	    		JDialog searchDialog = createSearchDialog(clickedNode.getJSONNode());
+	    	    searchDialog.setVisible(true);
+	    	});
+	    	loadStrItem.addActionListener(e -> {
+	    		treeViewData.loadFullStringForNode(clickedNode);
+	    		updateNodeValueTextArea(clickedNode);
+	    	});
+	        validateItem.addActionListener(e -> treeViewData.validateNode(clickedNode));
+	    	this.add(loadStrItem);
+	    	this.add(searchItem);
+	    	this.add(validateItem);
 	    }
 	    
 	    void setClickedNode(JSONTreeNode node){
 	    	this.clickedNode = node;
 	    	loadStrItem.setVisible(!clickedNode.getJSONNode().isFullyLoaded() && clickedNode.getJSONNode().getType() == JSONNode.TYPE_STRING);
 	    }
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			loadFullStringForNode(clickedNode);
-		}
 	}
 	
-//	private class NodeChangedListener implements TreeModelListener{
-//
-//		@Override
-//		public void treeNodesChanged(TreeModelEvent e) {
-//			TreePath selectedNode = 
-//                    treeView.getSelectionModel().getSelectionPath();//getLastSelectedPathComponent();
-//			if(selectedNode == null){
-//				System.out.println("Nothing is selected");
-//				return;
-//			}
-//			
-//			JSONTreeNode changedNode = (JSONTreeNode)e.getTreePath().getPathComponent(index);
-//			if(changedNode == selectedNode){
-//				
-//			}
-//			
-//			
-//		}
-//
-//		public void treeNodesInserted(TreeModelEvent e) {
-//		}
-//
-//		public void treeNodesRemoved(TreeModelEvent e) {
-//		}
-//
-//		public void treeStructureChanged(TreeModelEvent e) {
-//		}
-//		
-//	}
-	/**
-	 * A wrapper around a JSONNode object to render it in a JSONTreeViewPanel
-	 * 
-	 * @author nikanka
-	 *
-	 */
-	private class JSONTreeNode extends DefaultMutableTreeNode {
-
-		private boolean childrenAreLoaded = false;
-		private JSONNode node;
-		private DecimalFormat decimalFormat = new DecimalFormat("#,###,###,##0.0" );
-		private DecimalFormat intFormat = new DecimalFormat("#,###,###,###" );
-		
-
-		private JSONTreeNode(JSONNode node) {
-			super();//getNodeStringWithSize(node),//getNodeStringWithSize(),
-					//node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT);
-//			this.node = node;// TODO
-			this.setJSONNode(node);
-			this.setAllowsChildren(node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT);
-		}
-
-//		private String getNodeStringWithSize(){
-//			if(node.isFullyLoaded()){
-//				return node.getNodeString();
-//			}
-//			StringBuilder sb = new StringBuilder(node.getNodeString());
-//			sb.append("  [");
-//			sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
-//			sb.append("Kb]");
-//			return sb.toString();
-//		}
-		
-		private String createNodeString(){
-			StringBuilder sb = new StringBuilder((node.getName()==null?0:node.getName().length()) 
-					+ (node.getValue()==null?0:node.getValue().length()) + 40);
-			if(node.getName() != null){
-				sb.append(node.getName());
-			}
-			if(node.getValue() != null){
-				if(node.getName() != null){
-					sb.append(" : ");
-				}
-				if(node.getType() == JSONNode.TYPE_STRING){
-					sb.append("\"");
-				}
-				String val = node.getValue(); 
-				if(node.getType() == JSONNode.TYPE_STRING && 
-						(!node.isFullyLoaded() || val.length() > stringDisplayLength)){
-					sb.append(val.substring(0, stringDisplayLength));
-					sb.append("...");
-				}else {
-					sb.append(val);
-				}
-				if(node.getType() == JSONNode.TYPE_STRING){
-					sb.append("\"");
-				}	
-			}
-			if(node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT ||
-					(node.getType() == JSONNode.TYPE_STRING && !node.isFullyLoaded())){
-				sb.append("  [");
-				sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
-				sb.append("Kb]");	
-			}
-			if(node.getType() == JSONNode.TYPE_STRING && node.getValue().length() > stringDisplayLength){
-				sb.append("  [length = ");
-				sb.append(intFormat.format(node.getValue().length()));
-				sb.append("]");
-			}
-			return sb.toString();
-		}
-		private boolean childrenAreLoaded() {
-			return childrenAreLoaded;
-		}
-
-		private void setChildrenAreLoaded(boolean newVal) {
-			this.childrenAreLoaded = newVal;
-		}
-		public void setJSONNode(JSONNode node) {
-			this.node = node;
-			super.setUserObject(createNodeString());
-		}
-		
-
-		private JSONNode getJSONNode() {
-			return node;
-		}
-	}
 }

@@ -109,9 +109,11 @@ public class JSONSearch implements Closeable{
 					for(BytePatternMatcher pattern: patterns){
 						if(pattern.addNewByteAndCompare(curByte, curToken == SearchableTokenType.STRING)){
 							// found a match!
+							
 							resetPatterns(patterns, false);
 							searchInfo.addNewSearchResult(reader.getFilePosition() - pattern.length(), pattern.length(),
 									curToken == SearchableTokenType.STRING);
+//							System.out.println("Found at pos "+searchInfo.getLastMatchPos());
 							// check if the shortest pattern fit into the remaining searching range
 							if (patterns.get(patterns.size() - 1).length() > searchInfo.getSearchEndPos()
 									-  searchInfo.getCurSearchStartPos()) {

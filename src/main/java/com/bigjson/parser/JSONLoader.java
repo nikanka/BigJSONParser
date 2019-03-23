@@ -71,7 +71,7 @@ public class JSONLoader implements Closeable {
 	 * <code>searchInfo</code>), if the search is not finished yet (
 	 * <code>searchInfo.searchIsFinished() == false</code>). <br>
 	 * Save new search result in the <code>searchInfo</code> object.<br><br>
-	 * See more info in the doc for {@link #startNewSearch(String, long, long, boolean, boolean) startNewSearch}
+	 * See more info in the doc for {@link #createNewSearch(String, long, long, boolean, boolean) startNewSearch}
 	 * 
 	 * @param searchInfo
 	 *            object containing information about search of specified string
@@ -80,15 +80,16 @@ public class JSONLoader implements Closeable {
 	 *            check whether a new match was found use
 	 *            <code>searchInfo.searchIsFinished()</code>.
 	 * @throws IOException
+ 	 * @throws IllegalArgumentException
+	 *             if the search is already finished
+	 *             (searchInfo.searchIsFinished() is true)
 	 */
 	public void findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
-		if(!searchInfo.searchIsFinished()){
-			search.findNextMatch(searchInfo);
-		}
+		search.findNextMatch(searchInfo);
 	}
 	
 	/**
-	 * Start a new search of <code>stringToSearch</code> in leaf nodes (string,
+	 * Create a new search (but does not search yet) of <code>stringToSearch</code> in leaf nodes (string,
 	 * number, null, false and true tokens) and names of objects within range
 	 * <code>[searchStartPos, searchEndPos)</code> of a file. The match should
 	 * fit completely in this range and be completely within a token.<br>
@@ -115,14 +116,12 @@ public class JSONLoader implements Closeable {
 	 * @return an object containing information about the search including the
 	 *         first match (if any). To check whether a match was found use
 	 *         <code>searchInfo.searchIsFinished()</code>.
-	 * @throws IOException
 	 */
 	// TODO: add some type of ID to connect search with the reader/file 
-	public StringSearchInfo startNewSearch(String stringToSearch, long searchStartPos, long searchEndPos,
-			boolean caseSensitive, boolean searchForAltUnicode) throws IOException, IllegalFormatException {
+	public StringSearchInfo createNewSearch(String stringToSearch, long searchStartPos, long searchEndPos,
+			boolean caseSensitive, boolean searchForAltUnicode) {
 		StringSearchInfo searchInfo = search.createNewSearch(stringToSearch, searchStartPos, searchEndPos,
 				caseSensitive, searchForAltUnicode);
-		findNextMatch(searchInfo);
 		return searchInfo;
 	}
 
@@ -136,12 +135,11 @@ public class JSONLoader implements Closeable {
 	 * @param node
 	 *            a node that sets the range of a search
 	 * @return an object containing information about the search (parameters and results)
-	 * @throws IOException
 	 */
 	public StringSearchInfo startNewSearchWithinANode(String stringToSearch, JSONNode node, boolean caseSensitive,
-			boolean searchForAltUnicode) throws IOException, IllegalFormatException {
-		return startNewSearch(stringToSearch, node.getStartFilePosition(), node.getEndFilePosition() + 1, caseSensitive,
-				searchForAltUnicode);
+			boolean searchForAltUnicode) {
+		return createNewSearch(stringToSearch, node.getStartFilePosition(), node.getEndFilePosition() + 1,
+				caseSensitive, searchForAltUnicode);
 	}
 
 	//	public List<JSONNode> loadChildren(long pos) throws IOException, IllegalFormatException{

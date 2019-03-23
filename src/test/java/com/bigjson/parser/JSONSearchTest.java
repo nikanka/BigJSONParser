@@ -47,34 +47,41 @@ public class JSONSearchTest {
 
 			shouldFindAtPos(search, " ", 85, 0, json.length(), true, false);
 			shouldFindAtPos(search, " ", 85, 0, json.length(), false, false);
+			
+			
+		}
+		json = "{\"assembly_ref\":\"15754/23/1\"}";
+		try (JSONSearch search = createSearch(json)) {
+			searchAndCompare(search, "1", json, false, false);
 		}
 	}
 	
 	@Test
 	public void shouldSearchEscapeSequences() throws IOException, IllegalFormatException{
 		String json = "[\"abc\\n\", \"\\r','\\t','\\f','\\b'\" ,\"abc \", \"'\",\"投, ネ\",\"\\\\', \\\\\uD83D\uDE00\", \"\\u007f\\u0080\"]";
-		JSONSearch search = createSearch(json);	
-		searchAndCompare(search, "\\'", "\\\\'", json, true, true);
-		searchAndCompare(search, "abc\n", "abc\\n", json, true, true);
-		searchAndCompare(search, "ABC\n", "abc\\n", json, false, true);
-		searchAndCompare(search, "\n", "\\n", json, true, false);
-		searchAndCompare(search, "\r", "\\r", json, true, true);
-		searchAndCompare(search, "\t", "\\t", json, false, false);
-		searchAndCompare(search, "\f", "\\f", json, false, true);
-		searchAndCompare(search, "\b", "\\b", json, true, true);
-		searchAndCompare(search, "\\", "\\\\", json, true, true);
-		searchAndCompare(search, "\\'", "\\\\'", json, true, true);
-		
-		shouldNotFind(search, "\\", 0, 20, true, true);
-		shouldNotFind(search, "n", 0, json.length(), true, true);
-		shouldNotFind(search, "uD83D", 0, json.length(), true, true);
-		shouldNotFind(search, "D", 0, json.length(), true, true);
-		shouldNotFind(search, "007f", 0, json.length(), true, true);
-		shouldNotFind(search, "0", 0, json.length(), true, true);
-		
+		try (JSONSearch search = createSearch(json)) {
+			searchAndCompare(search, "\\'", "\\\\'", json, true, true);
+			searchAndCompare(search, "abc\n", "abc\\n", json, true, true);
+			searchAndCompare(search, "ABC\n", "abc\\n", json, false, true);
+			searchAndCompare(search, "\n", "\\n", json, true, false);
+			searchAndCompare(search, "\r", "\\r", json, true, true);
+			searchAndCompare(search, "\t", "\\t", json, false, false);
+			searchAndCompare(search, "\f", "\\f", json, false, true);
+			searchAndCompare(search, "\b", "\\b", json, true, true);
+			searchAndCompare(search, "\\", "\\\\", json, true, true);
+			searchAndCompare(search, "\\'", "\\\\'", json, true, true);
+
+			shouldNotFind(search, "\\", 0, 20, true, true);
+			shouldNotFind(search, "n", 0, json.length(), true, true);
+			shouldNotFind(search, "uD83D", 0, json.length(), true, true);
+			shouldNotFind(search, "D", 0, json.length(), true, true);
+			shouldNotFind(search, "007f", 0, json.length(), true, true);
+			shouldNotFind(search, "0", 0, json.length(), true, true);
+		}
 		json = "[\"\\\\\", \"\\\\\"]";
-		search = createSearch(json);	
-		searchAndCompare(search, "\\", "\\\\", json, true, true);
+		try (JSONSearch search = createSearch(json)) {	
+			searchAndCompare(search, "\\", "\\\\", json, true, true);
+		}
 	}
 	
 	@Test
