@@ -70,9 +70,13 @@ public class JSONLoader implements Closeable {
 	 * <code>searchInfo</code> within the search range (also specified in
 	 * <code>searchInfo</code>), if the search is not finished yet (
 	 * <code>searchInfo.searchIsFinished() == false</code>). <br>
-	 * Save new search result in the <code>searchInfo</code> object.<br><br>
-	 * See more info in the doc for {@link #createNewSearch(String, long, long, boolean, boolean) startNewSearch}
+	 * Save new search result in the <code>searchInfo</code> object.<br>
+	 * <br>
+	 * See more info in the doc for
+	 * {@link #createNewSearch(String, long, long, boolean, boolean)
+	 * startNewSearch}
 	 * 
+	 * @return true if the next match has been found, false otherwise
 	 * @param searchInfo
 	 *            object containing information about search of specified string
 	 *            within the specified region of the file, including all
@@ -80,12 +84,12 @@ public class JSONLoader implements Closeable {
 	 *            check whether a new match was found use
 	 *            <code>searchInfo.searchIsFinished()</code>.
 	 * @throws IOException
- 	 * @throws IllegalArgumentException
+	 * @throws IllegalArgumentException
 	 *             if the search is already finished
 	 *             (searchInfo.searchIsFinished() is true)
 	 */
-	public void findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
-		search.findNextMatch(searchInfo);
+	public boolean findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
+		return search.findNextMatch(searchInfo);
 	}
 	
 	/**

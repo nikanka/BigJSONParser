@@ -4,32 +4,27 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import javax.swing.DefaultComboBoxModel;
 import javax.swing.JOptionPane;
 import javax.swing.tree.DefaultTreeModel;
+
 import com.bigjson.parser.IllegalFormatException;
 import com.bigjson.parser.JSONLoader;
 import com.bigjson.parser.JSONNode;
-import com.bigjson.parser.StringSearchInfo;
 
-public class JSONTreeViewData {
+public class JSONTreeViewModel {
 	static int stringDisplayLength = 100;
 	
 	private DefaultTreeModel treeModel;
-	private JSONLoader backend;
-	private StringSearchInfo currentSearch = null;
-	private DefaultComboBoxModel<StringSearchInfo> cachedSearches = new DefaultComboBoxModel<StringSearchInfo>();
-	 
+	private JSONLoader loader;	 
 	
-	public JSONTreeViewData(File file, boolean validate) {
+	public JSONTreeViewModel(File file, boolean validate) {
 		// create a loader for a given file
 		try {
-			backend = new JSONLoader(file, stringDisplayLength);
+			loader = new JSONLoader(file, stringDisplayLength);
 			long t1 = System.currentTimeMillis();
-			JSONTreeNode rootNode = new JSONTreeNode(validate ? backend.getRootAndValidate() : backend.getRoot());
+			JSONTreeNode rootNode = new JSONTreeNode(validate ? loader.getRootAndValidate() : loader.getRoot());
 			System.out.println("Load root and children: " + (System.currentTimeMillis() - t1) / 1000 + " s");
-			 treeModel = new DefaultTreeModel(rootNode, true);
-//			initTreeModel(rootNode);
+			treeModel = new DefaultTreeModel(rootNode, true);
 			loadChildrenForNode(rootNode);
 		} catch (IOException e) {
 			MainFrame.showDialog("An IOException occured while reading new file: " + e.getMessage());
@@ -44,64 +39,28 @@ public class JSONTreeViewData {
 	public DefaultTreeModel getTreeModel(){
 		return treeModel;
 	}
+	
+	public JSONLoader getJSONLoader(){
+		return loader;
+	}
+	
 	public void dispose(){
 		try{
-			backend.close();
+			loader.close();
 		}catch(IOException e){
 			MainFrame.showDialog("An IOException occured while closing the previous file reader: " + e.getMessage());
 			return;
 		}
 		// TODO: how release resources properly?
-		backend = null;
-		cachedSearches = null;
+		loader = null;
 		treeModel = null;
 	}
-//	private void loadTreeFromFile(File file, boolean validate){
-//		// close previous loader
-//		if(backend != null){
-//			try{
-//				backend.close();
-//			}catch(IOException e){
-//				showDialog("An IOException occured while closing the previous file reader: " + e.getMessage());
-//				return;
-//			}
-//		}
-//		// create a loader for a given file
-//		try{
-//			backend = new JSONLoader(file, stringDisplayLength);
-//			long t1 = System.currentTimeMillis();
-//			JSONTreeNode rootNode = new JSONTreeNode(validate ? backend.getRootAndValidate() : backend.getRoot());
-//			System.out.println("Load root and children: "+(System.currentTimeMillis() - t1)/1000 + " s");
-////			treeModel = new DefaultTreeModel(rootNode, true);
-//			initTreeModel(rootNode);
-//			loadChildrenForNode(rootNode);
-//		}catch(IOException e){
-//			showDialog("An IOException occured while reading new file: "+e.getMessage());
-//			return;
-//		}catch(IllegalFormatException e){
-//			showDialog("An IllegalFormatException occured while loading the file: "+e.getMessage());
-//			return;
-//		}
-//		fileInfoField.setText(file.getName());
-//		fileInfoField.setToolTipText(file.getAbsolutePath());
-//		if(validate){
-//			showDialog("File " + file.getName() + " has been successfully validated");
-//		}
-//	}
 	
-	public StringSearchInfo createNewSearch(String toSearch, long from, long to, boolean caseSensitive, boolean searchForAltUnicode){
-		 StringSearchInfo search =  backend.createNewSearch(toSearch, from, to,
-				caseSensitive, searchForAltUnicode);
-		System.out.println("Search created");
-		cachedSearches.addElement(search);
-		return search;
-	}
-
 	
 	public void loadFullStringForNode(JSONTreeNode treeNode){
 		JSONNode node = treeNode.getJSONNode();
 		try {
-			node = backend.loadNodeWithFullString(node);	
+			node = loader.loadNodeWithFullString(node);	
 		} catch (IOException e) {
 			MainFrame.showDialog(
 					"IOException occured while loading full string for " + treeNode.getUserObject() + ": " + e.getMessage());
@@ -110,35 +69,13 @@ public class JSONTreeViewData {
 			MainFrame.showDialog("IllegalFormatException occured while loading full string for " + treeNode.getUserObject() + ": "
 					+ e.getMessage());
 		}
-		String str = node.getValue();
 		treeNode.setJSONNode(node);
 		treeModel.nodeChanged(treeNode);
-
-//		nodeValueTextArea.setText(str);
-//		loadFullStringBtn.setEnabled(false);
-//		return str;
 	}
 	
-	/**
-	 * Return true if search is not finished
-	 * @return
-	 */
-	private boolean findNextMatch(){
-		try{
-			backend.findNextMatch(currentSearch);
-		}catch(IOException ex){
-			MainFrame.showDialog("An IOException occured while searching: "+ex.getMessage());
-			return false;
-		}catch(IllegalFormatException ex){
-			MainFrame.showDialog("An IllegalFormatException occured while searching: "+ex.getMessage());
-			return false;
-		}
-		long pos = currentSearch.getLastMatchPos();
-		if(pos >= 0){
-			openLastNodeContainingPos(pos);
-		}
-		return !currentSearch.searchIsFinished();
-	}
+
+	
+	
 	private JSONTreeNode getLastNodeContainingPos(JSONTreeNode treeNode, long pos){
 		JSONNode node = treeNode.getJSONNode();
 		if(pos < node.getStartFilePosition() || pos > node.getEndFilePosition()){
@@ -164,22 +101,21 @@ public class JSONTreeViewData {
 			JSONTreeNode child = getLastNodeContainingPos((JSONTreeNode)treeNode.getChildAt(i), pos);
 			if(child != null){
 				return child;
-			}
-			
+			}	
 		}
 		return treeNode;
 	}
-	private void openLastNodeContainingPos(long pos){
+	public JSONTreeNode openLastNodeContainingPos(long pos){
 		JSONTreeNode node = (JSONTreeNode)treeModel.getRoot();
 		if(node == null){
-			return;
+			return null;
 		}
-		// TODO: need to actually open  node (maybe make it selected and then 
-		// treeView will notice it and expand it)
-		if(getLastNodeContainingPos(node, pos) == null){
+		node = getLastNodeContainingPos(node, pos);
+		if(node == null){
 			// make showDialog universal, maybe just switch to JOptionPane.showMessageDialog(null, "msg");
 			MainFrame.showDialog("Position " + pos + " is outside the root");
 		}
+		return node;
 	}
 
 	
@@ -189,7 +125,7 @@ public class JSONTreeViewData {
 		}
 		long time = System.currentTimeMillis();
 		try{
-			List<JSONNode> children = backend.loadChildren(parent.getJSONNode());
+			List<JSONNode> children = loader.loadChildren(parent.getJSONNode());
 			for(JSONNode child: children){
 				treeModel.insertNodeInto(new JSONTreeNode(child), parent, parent.getChildCount());
 			}
@@ -205,7 +141,7 @@ public class JSONTreeViewData {
 
 	public void validateNode(JSONTreeNode clickedNode) {
 		try {
-			IllegalFormatException ex = backend.validateNode(clickedNode.getJSONNode());
+			IllegalFormatException ex = loader.validateNode(clickedNode.getJSONNode());
 			if (ex != null) {
 				JOptionPane.showMessageDialog(null, "A problem with the node format was detected: " + ex.getMessage());
 			} else {
@@ -216,8 +152,5 @@ public class JSONTreeViewData {
 		}
 	}
 
-	public DefaultComboBoxModel<StringSearchInfo> getCashedSearches() {
-		return cachedSearches;
-	}
 
 }

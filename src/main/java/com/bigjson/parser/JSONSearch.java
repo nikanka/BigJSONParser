@@ -14,14 +14,11 @@ public class JSONSearch implements Closeable{
 	private UTF8FileReader reader;
 	private byte curByte;
 	private SearchableTokenType curToken = null;
-//	private List<BytePatternMatcher> patterns;
 	/**
 	 * String state machine for the head of the scanning window(s), it contains
 	 * state for the next (to-be-read) byte.
 	 */
 	private StringReadingStateMachine headStateMachine;
-//	private StringSearchInfo currentSearch = null;
-//	private boolean caseSensitive = true;
 	
 	public JSONSearch(File file) throws IOException{
 		this(new UTF8FileReader(file));
@@ -55,17 +52,12 @@ public class JSONSearch implements Closeable{
 
 	 */
 	private void initSearch(StringSearchInfo searchInfo) throws IOException{
-		if(searchInfo.searchIsFinished()){
+		if(searchInfo.isFinished()){
 			throw new IllegalArgumentException("The search is already finished");
 		}
 		if(!searchInfo.getCharset().equals(reader.getCharset())){
 			
 		}
-//		// check if the shortest pattern fit into the searching range
-//		if (patterns.get(patterns.size() - 1).length() > searchInfo.getSearchEndPos()
-//				- searchInfo.getCurSearchStartPos()) {
-//			return false;
-//		}
 		reader.getToPosition(searchInfo.getCurSearchStartPos());
 		if(searchInfo.getLastMatchPos() < 0){
 			// if it is the first search it should not be inside of a searchable token
@@ -87,6 +79,7 @@ public class JSONSearch implements Closeable{
 	 * <code>searchInfo</code>). The search starts from the position just after the previous match
 	 * (or from the beginning of the search range if this is the first search).<br>
 	 * Update the <code>searchInfo</code> object with a new match or no match.
+	 * @return true if the next match was found, false otherwise
 	 * @param searchInfo
 	 * @throws IOException
 	 * @throws IllegalFormatException
@@ -94,7 +87,7 @@ public class JSONSearch implements Closeable{
 	 *             if the search is already finished
 	 *             (searchInfo.searchIsFinished() is true)
 	 */
-	public void findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
+	public boolean findNextMatch(StringSearchInfo searchInfo) throws IOException, IllegalFormatException{
 		initSearch(searchInfo);
 		// go along file positions keeping track of the state (within or out of a string)
 		// and recalculate the sum(s)
@@ -109,7 +102,6 @@ public class JSONSearch implements Closeable{
 					for(BytePatternMatcher pattern: patterns){
 						if(pattern.addNewByteAndCompare(curByte, curToken == SearchableTokenType.STRING)){
 							// found a match!
-							
 							resetPatterns(patterns, false);
 							searchInfo.addNewSearchResult(reader.getFilePosition() - pattern.length(), pattern.length(),
 									curToken == SearchableTokenType.STRING);
@@ -117,9 +109,9 @@ public class JSONSearch implements Closeable{
 							// check if the shortest pattern fit into the remaining searching range
 							if (patterns.get(patterns.size() - 1).length() > searchInfo.getSearchEndPos()
 									-  searchInfo.getCurSearchStartPos()) {
-								searchInfo.searchIsFinished();
+								searchInfo.isFinished();
 							}
-							return;
+							return true;
 						}
 					}
 				} else if(prevStateIsReadable){
@@ -134,6 +126,7 @@ public class JSONSearch implements Closeable{
 		// we reached up to the end of the search range and found nothing
 		resetPatterns(patterns, true);
 		searchInfo.addNewSearchResult(-1, -1, searchInfo.isLastMatchWitninString());
+		return false;
 	}
 	
 	private static void resetPatterns(List<BytePatternMatcher> patterns, boolean endOfToken){
@@ -199,12 +192,5 @@ public class JSONSearch implements Closeable{
 	private boolean isNonStringTokenStart(byte b){
 		return b == 't' || b == 'f' || b == 'n' || b == '-' || (b >= 48 && b <= 57); 
 	}
-
-//	private void resetPatternMatchs(){
-//		for(BytePatternMatcher pattern: patterns){
-//			pattern.reset();
-//		}
-//	}
-
 
 }

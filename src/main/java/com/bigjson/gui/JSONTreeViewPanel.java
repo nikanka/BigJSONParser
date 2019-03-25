@@ -38,7 +38,8 @@ import com.bigjson.parser.JSONNode;
  */
 @SuppressWarnings("serial")
 public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{	
-	private JSONTreeViewData treeViewData;
+	
+	private JSONTreeViewModel treeViewModel;
 	
 	private JScrollPane scrollPane;
 	private JTree treeView;
@@ -50,160 +51,37 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	
 	private JDialog createSearchDialog(JSONNode node) {
 		if (node == null){
-			node = ((JSONTreeNode)treeViewData.getTreeModel().getRoot()).getJSONNode();
+			node = ((JSONTreeNode)treeViewModel.getTreeModel().getRoot()).getJSONNode();
 		}
 		System.out.println("Open search dialog for node " + node.getName() + " (" + node.getStartFilePosition() + ", "
 		+ node.getEndFilePosition() + ")");
 		
-		return new SearchDialog(null, node.getStartFilePosition(), node.getEndFilePosition() + 1, treeViewData);
-		
-		
-//		JDialog searchDialog = new JDialog(mainFrame, "Search");
-//		searchDialog.setLocation(400, 300);
-//		Container cp = searchDialog.getContentPane();
-//		// find panel
-//		JPanel pFind = new JPanel();
-//		pFind.setLayout(new BoxLayout(pFind, BoxLayout.Y_AXIS));
-//		// TODO: remember previous searches 
-//		JComboBox<StringSearchInfo> comboFind = new JComboBox<StringSearchInfo>(cachedSearches);
-//		comboFind.addItemListener(e -> {
-//			if(e.getStateChange() == ItemEvent.SELECTED){
-//				StringSearchInfo selSearch = (StringSearchInfo)e.getItem();//(StringSearchInfo)((JComboBox)e.getSource()).getModel().getSelectedItem();
-////				finalizeCurrentSearch();
-//				currentSearch = selSearch;
-//			}
-//		});
-//		
-//		comboFind.setEditable(true);
-//		comboFind.setMaximumSize(new Dimension(500, 30));
-//		JLabel lFind = new JLabel("Find: ");
-//		JLabel lFound = new JLabel("");
-//		lFind.setAlignmentX(0);
-//        pFind.add(lFind);
-//        pFind.setAlignmentX(0);
-//        pFind.add(comboFind);
-//        pFind.add(lFound);
-//        // options panel
-//        JPanel pOptions = new JPanel(new GridLayout(2, 1));
-//        pOptions.setBorder(BorderFactory.createTitledBorder("Options"));
-//        JCheckBox caseSensChBox = new JCheckBox("Case sensitive");
-//        JCheckBox altUnicodeChBox = new JCheckBox("Search for alternative non-ASCII encoding");
-//        pOptions.add(caseSensChBox);
-//        pOptions.add(altUnicodeChBox);
-//        // buttons
-//        JPanel pButtons = new JPanel(new FlowLayout(FlowLayout.CENTER));
-//        JButton btnPrev = new JButton("Go To Previous Match");
-//        btnPrev.setEnabled(false);
-//        JButton btnFind = new JButton("Find");
-//        JButton btnStart = new JButton("Start New Search");
-//        btnStart.setEnabled(false);
-//        JButton btnClose = new JButton("Close");
-//        pButtons.add(btnPrev);
-//        pButtons.add(btnFind);
-//        pButtons.add(btnStart);
-//        pButtons.add(btnClose);
-//        
-//        btnFind.addActionListener(e -> {
-//        	if(currentSearch == null){
-//        		caseSensChBox.setEnabled(false);
-//            	altUnicodeChBox.setEnabled(false);
-//            	comboFind.setEnabled(false);
-////            	String toSearch = (String)comboFind.getSelectedItem();
-//            	String toSearch = (String)comboFind.getEditor().getItem();
-//            	startNewSearch(toSearch, node, caseSensChBox.isSelected(), altUnicodeChBox.isSelected());
-//        	}
-//        	btnStart.setEnabled(true);
-//        	if(!findNextMatch()){
-//        		btnFind.setEnabled(false);
-//        		lFound.setText("No more matches found");
-//        	} else {
-//        		lFound.setText("Found a match at pos " + currentSearch.getLastMatchPos());
-//        	}
-//        	if(currentSearch.getLastMatchPos() >= 0){
-//        		btnPrev.setEnabled(true);
-//        	}
-//        });
-//        btnStart.addActionListener(e -> {
-//        	caseSensChBox.setEnabled(true);
-//        	altUnicodeChBox.setEnabled(true);
-//        	comboFind.setEnabled(true);     
-//        	btnPrev.setEnabled(false);
-//        	btnFind.setEnabled(true);
-//        	lFound.setText("");
-//        	currentSearch = null;
-//        });
-//        btnClose.addActionListener(e -> {
-//        	finalizeCurrentSearch();
-//        	searchDialog.dispose();
-//        });
-//        // center panel: find + options
-//        JPanel pCenter = new JPanel(new GridLayout(2, 1));
-//        pCenter.add(pFind);
-//        pCenter.add(pOptions);
-//        // south panel: buttons
-//        cp.add(pCenter, BorderLayout.CENTER);
-//        cp.add(pButtons, BorderLayout.SOUTH);
-//        searchDialog.pack();
-//        
-//        searchDialog.setDefaultCloseOperation(
-//			    JDialog.DO_NOTHING_ON_CLOSE);
-//        searchDialog.addWindowListener(new WindowAdapter() {
-//			    public void windowClosing(WindowEvent e) {
-//			    	finalizeCurrentSearch();
-//			    	e.getWindow().dispose();
-//			    }
-//			});
-//		return searchDialog;
+		return new SearchDialog(this, node.getStartFilePosition(), node.getEndFilePosition(), treeViewModel);
 	}
 	
-//	private void finalizeCurrentSearch(){
-//		// TODO check is this search is already cached
-//		cachedSearches.addElement(currentSearch);
-//		currentSearch = null;
-//	}
-
-//	/**
-//	 * Return true if search is not finished
-//	 * @return
-//	 */
-//	private boolean findNextMatch(){
-//		try{
-//			backend.findNextMatch(currentSearch);
-//		}catch(IOException ex){
-//			showDialog("An IOException occured while searching: "+ex.getMessage());
-//			return false;
-//		}catch(IllegalFormatException ex){
-//			showDialog("An IllegalFormatException occured while searching: "+ex.getMessage());
-//			return false;
-//		}
-//		long pos = currentSearch.getLastMatchPos();
-//		if(pos >= 0){
-//			openLastNodeContainingPos(pos);
-//		}
-//		// TODO : open node with the match
-//		return !currentSearch.searchIsFinished();
-//	}
-//	
-	
-
-	private void expandNode(JSONTreeNode treeNode) {
+	public void expandNode(JSONTreeNode treeNode) {
 		TreePath path = new TreePath(treeNode.getPath());
 		treeView.expandPath(path);
 		treeView.setSelectionPath(path);
 		treeView.scrollPathToVisible(path);
 	}
-
 	
+	public void expandLastNodeContainingPos(long pos){
+		expandNode(treeViewModel.openLastNodeContainingPos(pos));
+	}
 
 	public JSONTreeViewPanel(File file, boolean validate) {
 		super(new BorderLayout());
-//		this.mainFrame = frame;
 		init();
-		treeViewData = new JSONTreeViewData(file, validate);
+		treeViewModel = new JSONTreeViewModel(file, validate);
 		initTreeModel();
 		fileInfoField.setText(file.getName());
 		fileInfoField.setToolTipText(file.getAbsolutePath());
 
+	}
+	
+	public JSONTreeViewModel getTreeViewModel(){
+		return treeViewModel;
 	}
 
 	private void init(){
@@ -237,7 +115,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 			TreePath selPath = treeView.getSelectionPath();
 			JSONTreeNode treeNode = (JSONTreeNode) selPath.getLastPathComponent();
 			if (treeNode != null) {
-				treeViewData.loadFullStringForNode(treeNode);
+				treeViewModel.loadFullStringForNode(treeNode);
 				updateNodeValueTextArea(treeNode);
 			}
 		});
@@ -276,7 +154,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	}
 
 	private void initTreeModel(){
-		treeView = new JTree(treeViewData.getTreeModel());
+		treeView = new JTree(treeViewModel.getTreeModel());
 		treeView.collapseRow(0);
 		treeView.addTreeWillExpandListener(this);
 		treeView.addMouseListener(nodeMenuMouseListener);
@@ -300,7 +178,7 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	@Override
 	public void treeWillExpand(TreeExpansionEvent event) throws ExpandVetoException {
 		JSONTreeNode parent = (JSONTreeNode) event.getPath().getLastPathComponent();
-		treeViewData.loadChildrenForNode(parent);
+		treeViewModel.loadChildrenForNode(parent);
 		
 	}
 	
@@ -326,10 +204,10 @@ public class JSONTreeViewPanel extends JPanel implements TreeWillExpandListener{
 	    	    searchDialog.setVisible(true);
 	    	});
 	    	loadStrItem.addActionListener(e -> {
-	    		treeViewData.loadFullStringForNode(clickedNode);
+	    		treeViewModel.loadFullStringForNode(clickedNode);
 	    		updateNodeValueTextArea(clickedNode);
 	    	});
-	        validateItem.addActionListener(e -> treeViewData.validateNode(clickedNode));
+	        validateItem.addActionListener(e -> treeViewModel.validateNode(clickedNode));
 	    	this.add(loadStrItem);
 	    	this.add(searchItem);
 	    	this.add(validateItem);

@@ -27,17 +27,6 @@ import com.bigjson.parser.JSONNode;
 			this.setJSONNode(node);
 			this.setAllowsChildren(node.getType() == JSONNode.TYPE_ARRAY || node.getType() == JSONNode.TYPE_OBJECT);
 		}
-
-//		private String getNodeStringWithSize(){
-//			if(node.isFullyLoaded()){
-//				return node.getNodeString();
-//			}
-//			StringBuilder sb = new StringBuilder(node.getNodeString());
-//			sb.append("  [");
-//			sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
-//			sb.append("Kb]");
-//			return sb.toString();
-//		}
 		
 		private String createNodeString(){
 			StringBuilder sb = new StringBuilder((node.getName()==null?0:node.getName().length()) 
@@ -54,9 +43,9 @@ import com.bigjson.parser.JSONNode;
 				}
 				String val = node.getValue(); 
 				if(node.getType() == JSONNode.TYPE_STRING && 
-						(!node.isFullyLoaded() || val.length() > JSONTreeViewData.stringDisplayLength)){
-					if(val.length() > JSONTreeViewData.stringDisplayLength){
-						val = val.substring(0, JSONTreeViewData.stringDisplayLength);
+						(!node.isFullyLoaded() || val.length() > JSONTreeViewModel.stringDisplayLength)){
+					if(val.length() > JSONTreeViewModel.stringDisplayLength){
+						val = val.substring(0, JSONTreeViewModel.stringDisplayLength);
 					}
 					sb.append(val);
 					sb.append("...");
@@ -73,7 +62,7 @@ import com.bigjson.parser.JSONNode;
 				sb.append(decimalFormat.format((node.getEndFilePosition() - node.getStartFilePosition())/1024.));
 				sb.append("Kb]");	
 			}
-			if(node.getType() == JSONNode.TYPE_STRING && node.getValue().length() > JSONTreeViewData.stringDisplayLength){
+			if(node.getType() == JSONNode.TYPE_STRING && node.getValue().length() > JSONTreeViewModel.stringDisplayLength){
 				sb.append("  [length = ");
 				sb.append(intFormat.format(node.getValue().length()));
 				sb.append("]");

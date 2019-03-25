@@ -108,7 +108,7 @@ public class JSONSearchTest {
 		StringSearchInfo searchInfo = search.createNewSearch(toSearch, from, to, caseSensitive,
 				searchForAltUnicode);
 		search.findNextMatch(searchInfo);
-		assertTrue(searchInfo.searchIsFinished());
+		assertTrue(searchInfo.isFinished());
 	}
 
 	private void shouldFindAtPos(JSONSearch search, String toSearch, int matchPos, int from, int to,
@@ -118,7 +118,7 @@ public class JSONSearchTest {
 		search.findNextMatch(searchInfo);
 		assertEquals(matchPos, searchInfo.getLastMatchPos());
 		search.findNextMatch(searchInfo);
-		assertTrue(searchInfo.searchIsFinished());
+		assertTrue(searchInfo.isFinished());
 	}
 
 	private void searchAndCompare(JSONSearch search, String toSearch, String json, boolean caseSensitive,
@@ -136,7 +136,7 @@ public class JSONSearchTest {
 		while (true) {
 			search.findNextMatch(searchInfo);
 			prevMatchPos = json.indexOf(toSearch, prevMatchPos + 1);
-			if (searchInfo.searchIsFinished()) {
+			if (searchInfo.isFinished()) {
 				assertTrue("Search should not be finished, expected prevMatchPos = " + prevMatchPos, prevMatchPos < 0);
 				break;
 			}

@@ -137,7 +137,7 @@ public class StringSearchInfo {
 	 * @return true if no more matches can be found within the specified search
 	 *         range
 	 */
-	public boolean searchIsFinished() {
+	public boolean isFinished() {
 		return searchIsFinished;
 	}
 	
@@ -181,5 +181,19 @@ public class StringSearchInfo {
 
 	public List<BytePatternMatcher> getPatterns() {
 		return patterns;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if(! (obj instanceof StringSearchInfo)){
+			return false;
+		}
+		StringSearchInfo search = (StringSearchInfo) obj;
+		// TODO: compare the files
+		return stringToSearch.equals(search.stringToSearch) &&
+				searchStartPos == search.searchStartPos &&
+				searchEndPos == search.searchEndPos &&
+				caseSensitive == search.caseSensitive &&
+				searchForAltUnicode == search.searchForAltUnicode;
 	}
 }
