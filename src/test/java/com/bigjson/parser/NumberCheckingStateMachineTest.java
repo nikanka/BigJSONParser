@@ -1,6 +1,7 @@
 package com.bigjson.parser;
 
 import org.junit.Test;
+import org.junit.Assert;
 
 public class NumberCheckingStateMachineTest {
 
@@ -120,9 +121,8 @@ public class NumberCheckingStateMachineTest {
 		}catch(IllegalFormatException e){
 			System.err.println(e.getMessage());
 			return;
-		}
-		throw new RuntimeException(
-				"The method should have thrown an IllegalFormatException for number string '" + numStr + "'");
+		}	
+		Assert.fail("The method should have thrown an IllegalFormatException for number string '" + numStr + "'");
 	}
 	
 	/**

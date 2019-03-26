@@ -66,7 +66,7 @@ public class StringReadingStateMachine {
 	}
 	
 	/**
-	 * Take in next ASCII byte. Ignore bytes that are not in ASCII range ([0,
+	 * Take in next ASCII byte. Does not check bytes that are not in ASCII range ([0,
 	 * 128)) and not in escape sequence.<br>
 	 * <br>
 	 * IMPORTANT: should be used only in the checking ASCII mode - will throw a

@@ -19,7 +19,7 @@ public class TestUtils {
 		return new File(testFileDir, "NegativeTest" + ind + ".json");
 	}
 	
-	public static File getGeneratedFileName(){
+	public static File getGeneratedTestFile(){
 		File file = getGeneratedFilePath("test" + fileInd + ".txt");
 		fileInd++;
 //		System.out.println("Current test file: " + file);
